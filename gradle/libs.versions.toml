@@ -1,13 +1,21 @@
 [versions]
-agp = "8.0.2"
-kotlin = "1.9.0"
+agp = "8.2.0"
+inikio-core = "0.1"
+kotlin = "1.9.24"
 nexus-publish = "2.0.0-rc-1"
 android-minSdk = "24"
 android-compileSdk = "33"
+coroutines-core = "1.8.1"
+arrow = "1.2.4"
+kotlinx-io = "0.3.5"
 
 [libraries]
+inikio-core = { module = "com.github.serras.inikio:inikio-core", version.ref = "inikio-core" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 nexus-publish = { module = "io.github.gradle-nexus.publish-plugin:io.github.gradle-nexus.publish-plugin.gradle.plugin", version.ref = "nexus-publish" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines-core" }
+arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
+kotlinx-io = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io"}
 
 [plugins]
 androidLibrary = { id = "com.android.library", version.ref = "agp" }

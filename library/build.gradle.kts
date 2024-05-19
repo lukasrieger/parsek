@@ -5,8 +5,15 @@ plugins {
 }
 
 kotlin {
-    targetHierarchy.default()
-    jvm()
+    applyDefaultHierarchyTemplate()
+    jvm {
+        compilations.all {
+            compilerOptions.configure {
+                freeCompilerArgs.set(listOf("-Xcontext-receivers"))
+            }
+        }
+
+    }
     androidTarget {
         publishLibraryVariants("release")
         compilations.all {
@@ -23,7 +30,10 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                //put your multiplatform dependencies here
+                implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.arrow.core)
+                implementation(libs.kotlinx.io)
+
             }
         }
         val commonTest by getting {
@@ -31,11 +41,17 @@ kotlin {
                 implementation(libs.kotlin.test)
             }
         }
+
+        val jvmMain by getting {
+            dependencies {
+                implementation(libs.inikio.core)
+            }
+        }
     }
 }
 
 android {
-    namespace = "org.jetbrains.kotlinx.multiplatform.library.template"
+    namespace = "com.parsek.parsek"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()

@@ -11,8 +11,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven(url = "https://jitpack.io")
     }
 }
 
-rootProject.name = "multiplatform-library-template"
+rootProject.name = "parsek"
 include(":library")
