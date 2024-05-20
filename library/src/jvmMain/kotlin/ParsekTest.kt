@@ -1,8 +1,8 @@
 data class St(val callCount: Int)
 
-val t1: ParsekT<Nothing, Nothing, String> = pure("Hello!")
+val t1= pure("Hello!")
 
-val t2: ParsekT<Nothing, Nothing, Int> = pure(0)
+val t2 = pure(0)
 
 var i = 0
 val t3: ParsekT<Nothing, St, String>
@@ -47,5 +47,5 @@ fun tRec2(): ParsekT<Nothing, St, String> = doM {
 
 
 fun main() {
-    println(t4().runParsekT("emptyPath", "Hello World!"))
+    println(t4().runParsekT( "Hello World!"))
 }

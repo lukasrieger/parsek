@@ -1,9 +1,9 @@
 import Trampoline.Companion.done
 import Trampoline.Companion.more
 import arrow.core.nonEmptyListOf
-import arrow.core.toNonEmptyListOrNull
 import stream.take1
 import stream.takeN
+import util.toNonEmptyList
 
 
 interface ParsekT<out Error, out Context, out Output> {
@@ -18,10 +18,15 @@ interface ParsekT<out Error, out Context, out Output> {
 }
 
 
-typealias ConsumedOk<E, C, O, B> = (O, State<E, C>, Hints<Char>) -> B
-typealias ConsumedError<E, C, B> = (ParseError<E>, State<E, C>) -> B
-typealias EmptyOk<E, C, O, B> = (O, State<E, C>, Hints<Char>) -> B
-typealias EmptyError<E, C, B> = (ParseError<E>, State<E, C>) -> B
+typealias ParserE<Error, Output> = ParsekT<Error, Nothing, Output>
+typealias ParserC<Context, Output> = ParsekT<Nothing, Context, Output>
+typealias Parser<Output> = ParsekT<Nothing, Nothing, Output>
+
+
+internal typealias ConsumedOk<E, C, O, B> = (O, State<E, C>, Hints<Char>) -> B
+internal typealias ConsumedError<E, C, B> = (ParseError<E>, State<E, C>) -> B
+internal typealias EmptyOk<E, C, O, B> = (O, State<E, C>, Hints<Char>) -> B
+internal typealias EmptyError<E, C, B> = (ParseError<E>, State<E, C>) -> B
 
 
 fun <Error, Context, Output> fail(message: String): ParsekT<Error, Context, Output> =
@@ -131,7 +136,7 @@ fun <Error, Context> tokens(
     ): B {
         val unexpected: (Int, ErrorItem<Char>) -> ParseError<Error> = { pos, u ->
             ParseError.TrivialError(
-                pos, u, setOf(ErrorItem.Tokens(tokens.toList().toNonEmptyListOrNull()!!))
+                pos, u, setOf(ErrorItem.Tokens(tokens.toNonEmptyList()))
             )
         }
 
@@ -162,7 +167,7 @@ fun <Error, Context> tokens(
                     }
                 } else {
                     emptyError(
-                        unexpected(state.stateOffset, ErrorItem.Tokens(tts.toList().toNonEmptyListOrNull()!!)),
+                        unexpected(state.stateOffset, ErrorItem.Tokens(tts.toNonEmptyList())),
                         State(
                             state.stateInput,
                             state.stateContext,
@@ -192,7 +197,7 @@ fun <Context> getContext(): ParsekT<Nothing, Context, Context> =
     }
 
 
-fun <Context> updateContext(fn: (Context) -> Context): ParsekT<Nothing, Context, Unit> =
+fun <Context> updateContext(fn: (Context) -> Context): ParserC<Context, Unit> =
     object : ParsekT<Nothing, Context, Unit> {
         override fun <B> unparser(
             state: State<Nothing, Context>,
@@ -212,15 +217,15 @@ fun <Context> updateContext(fn: (Context) -> Context): ParsekT<Nothing, Context,
     }
 
 
-fun <Error, Context, Output> pure(pure: Output) =
-    object : ParsekT<Error, Context, Output> {
+fun <Output> pure(pure: Output): Parser<Output> =
+    object : Parser<Output> {
         override fun <B> unparser(
-            state: State<Error, Context>,
+            state: State<Nothing, Nothing>,
             trampoline: (() -> B) -> B,
-            consumedOk: ConsumedOk<Error, Context, Output, B>,
-            consumedError: ConsumedError<Error, Context, B>,
-            emptyOk: EmptyOk<Error, Context, Output, B>,
-            emptyError: EmptyError<Error, Context, B>
+            consumedOk: (Output, State<Nothing, Nothing>, Hints<Char>) -> B,
+            consumedError: (ParseError<Nothing>, State<Nothing, Nothing>) -> B,
+            emptyOk: (Output, State<Nothing, Nothing>, Hints<Char>) -> B,
+            emptyError: (ParseError<Nothing>, State<Nothing, Nothing>) -> B
         ): B = trampoline { emptyOk(pure, state, Hints.empty()) }
     }
 
@@ -295,14 +300,14 @@ internal fun <Error, Context, Output> tailRec(
 
 
 fun <Error, Output> ParsekT<Error, Nothing, Output>.runParsekT(
-    name: FilePath,
-    input: String
+    input: String,
+    name: FilePath
 ): Reply<Error, Unit, Output> = runParsekT(name = name, input = input, context = Unit)
 
 
 fun <Error, Context, Output> ParsekT<Error, Context, Output>.runParsekT(
-    name: FilePath,
     input: String,
+    name: FilePath = FilePath.empty(),
     context: Context,
     initialState: State<Error, Context> = State.initial(name, input, context)
 ): Reply<Error, Context, Output> {

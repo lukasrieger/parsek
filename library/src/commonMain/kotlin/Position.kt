@@ -3,6 +3,8 @@ import kotlin.jvm.JvmInline
 
 typealias FilePath = String
 
+internal fun String.Companion.empty(): FilePath = ""
+
 
 data class SourcePos(
     val sourceName: FilePath,
