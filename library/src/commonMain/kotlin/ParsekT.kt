@@ -23,18 +23,22 @@ data class Hints<T>(val hints: Set<ErrorItem<T>>) {
 
 
 
-data class Reply<E, A>(
-    val state: State<E>,
+data class Reply<E, C, A>(
+    val state: State<E, C>,
     val consumption: Consumption,
     val result: Result<E, A>
 )
 
+data class ContextState<Context>(val context: Context)
 
-data class State<out E>(
+
+data class State<out E, C>(
     /**
      * The rest input to process
      */
     val stateInput: String,
+
+    val stateContext: ContextState<C>,
     /**
      * The number of processed tokens so far
      */

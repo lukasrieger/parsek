@@ -1,12 +1,12 @@
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.io.files.Path
 import kotlin.Result
 import kotlin.coroutines.*
 import kotlin.experimental.ExperimentalTypeInference
 import kotlin.reflect.KProperty0
+import updateContext as _updateContext
 
 
-class ParsekScope<Error, Context, O> : Continuation<ParsekT<Error, Context, O>> {
+class ParsekScope<Error, Context, O> : Continuation<ParsekT<Error, @UnsafeVariance Context, O>> {
 
     override val context: CoroutineContext = EmptyCoroutineContext
     override fun resumeWith(result: Result<ParsekT<Error, Context, O>>) {
@@ -15,21 +15,14 @@ class ParsekScope<Error, Context, O> : Continuation<ParsekT<Error, Context, O>> 
             onFailure = { throw it }
         )
     }
-
-    suspend fun context(): @UnsafeVariance Context = bind(object : ParsekT<Error, Context, Context> {
-        context(Context) override fun <B> unparser(
-            state: State<Error>,
-            trampoline: (() -> B) -> B,
-            consumedOk: ConsumedOk<Error, Context, Context, B>,
-            consumedError: ConsumedError<Error, Context, B>,
-            emptyOk: EmptyOk<Error, Context, Context, B>,
-            emptyError: EmptyError<Error, Context, B>
-        ): B = emptyOk(this@Context, this@Context, state, Hints.empty())
-    })
-
     private lateinit var returnedParsekT: ParsekT<Error, Context, O>
 
     fun returnedMonad(): ParsekT<Error, Context, O> = returnedParsekT
+
+
+    suspend fun context(): Context = !getContext<Context>()
+
+    suspend fun updateContext(fn: (Context) -> Context): Unit = !_updateContext(fn)
 
     private suspend fun <B> bind(m: ParsekT<Error, Context, B>): B = suspendCoroutine { cont ->
         returnedParsekT = m.bind {
@@ -43,16 +36,15 @@ class ParsekScope<Error, Context, O> : Continuation<ParsekT<Error, Context, O>> 
 
 @OptIn(ExperimentalTypeInference::class)
 @BuilderInference
-fun <E, C, O> doM(@BuilderInference f: suspend ParsekScope<E, C, O>.(C) -> O): ParsekT<E, C, O> {
-    val withContext: suspend ParsekScope<E, C, O>.() -> O = { f(context()) }
+fun <E, C, O> doM(@BuilderInference f: suspend ParsekScope<E, C, O>.() -> O): ParsekT<E, C, O> {
     val scope = ParsekScope<E, C, O>()
-    val wrapReturn: suspend ParsekScope<E, C, O>.() -> ParsekT<E, C, O> = { pure(withContext()) }
+    val wrapReturn: suspend ParsekScope<E, C, O>.() -> ParsekT<E, C, O> = { pure(f()) }
     wrapReturn.startCoroutine(scope, scope)
 
     return scope.returnedMonad()
 }
 
-class St(var callCount: Int)
+data class St(val callCount: Int)
 
 val t1: ParsekT<Nothing, St, String> = pure("Hello!")
 
@@ -61,19 +53,23 @@ val t2: ParsekT<Nothing, Nothing, Int> = pure(0)
 var i = 0
 val t3: ParsekT<Nothing, St, String>
     get() = doM {
-        println(i)
         !t1
-        i += 1
 
-        println(it.callCount)
+        updateContext {
+            it.copy(callCount = it.callCount + 1)
+        }
+
+        val currentContext = context()
+
+        println(currentContext.callCount)
+
+        !t3
         "1"
     }
 
-fun t4() = doM { cp: St ->
+fun t4() = doM {
     val x = !t1
     val y = !t2
-
-    cp.callCount
 
     "$x -> $y"
 }
@@ -108,9 +104,10 @@ fun main() {
 
         println(
             runParsekT(
-                tRec1(),
+                t3,
                 State(
                     stateInput = "",
+                    stateContext = ContextState(St(0)),
                     stateOffset = 0,
                     statePosState = PosState(
                         pStateLinePrefix = "",
@@ -124,8 +121,7 @@ fun main() {
                         )
                     ),
                     stateParseErrors = emptyList()
-                ),
-                St(0)
+                )
             ).result
         )
     }
