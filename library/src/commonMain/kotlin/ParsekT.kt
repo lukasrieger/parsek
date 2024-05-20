@@ -1,8 +1,8 @@
 import Trampoline.Companion.done
 import Trampoline.Companion.more
 import arrow.core.nonEmptyListOf
-import stream.take1
-import stream.takeN
+import util.take1
+import util.takeN
 import util.toNonEmptyList
 
 
@@ -140,7 +140,7 @@ fun <Error, Context> tokens(
             )
         }
 
-        return when (val taken = state.stateInput.takeN()) {
+        return when (val taken = state.stateInput.takeN(tokens.length)) {
             null ->
                 emptyError(
                     unexpected(state.stateOffset, ErrorItem.EndOfInput),
