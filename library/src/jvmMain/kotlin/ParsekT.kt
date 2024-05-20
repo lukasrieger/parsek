@@ -1,3 +1,5 @@
+import RunParser.Companion.done
+import RunParser.Companion.more
 import arrow.core.nonEmptyListOf
 import arrow.core.toNonEmptyListOrNull
 import stream.take1
@@ -25,6 +27,17 @@ internal sealed interface RunParser<out Error, out Context, out Output> {
     data class Done<Error, Context, Output>(
         val done: Reply<Error, Output>
     ) : RunParser<Error, Context, Output>
+
+
+    companion object {
+        internal fun <Error, Context, Output> done(
+            reply: Reply<Error, Output>
+        ): RunParser<Error, Context, Output> = Done(reply)
+
+        internal fun <Error, Context, Output> more(
+            run: () -> RunParser<Error, Context, Output>
+        ): RunParser<Error, Context, Output> = More(run)
+    }
 }
 
 typealias ConsumedOk<E, C, O, B> = context(C) (O, State<E>, Hints<Char>) -> B
@@ -235,7 +248,7 @@ sealed interface Step<out A, out B> {
 }
 
 
-internal fun <E, C, O> tailRecIdent(
+internal fun <E, C, O> tailRec(
     next: (() -> RunParser<E, C, O>) -> Step<() -> RunParser<E, C, O>, Reply<E, O>>,
     initial: () -> RunParser<E, C, O>
 ): Reply<E, O> {
@@ -249,34 +262,34 @@ internal fun <E, C, O> tailRecIdent(
 }
 
 
-fun <E, C, O> runParsekT(
-    parser: ParsekT<E, C, O>,
-    initialState: State<E>,
-    context: C
-): Reply<E, O> {
+fun <Error, Context, Output> runParsekT(
+    parser: ParsekT<Error, Context, Output>,
+    initialState: State<Error>,
+    context: Context
+): Reply<Error, Output> {
     tailrec fun go(
-        n: () -> RunParser<E, C, O>
-    ): Step<() -> RunParser<E, C, O>, Reply<E, O>> = when (val step = n()) {
+        n: () -> RunParser<Error, Context, Output>
+    ): Step<() -> RunParser<Error, Context, Output>, Reply<Error, Output>> = when (val step = n()) {
         is RunParser.Done -> Step.Done(step.done)
         is RunParser.More -> go(step.run)
     }
 
-    return tailRecIdent(::go) {
+    return tailRec(::go) {
         context.run {
             parser.unparser(
                 state = initialState,
-                trampoline = { cont -> RunParser.More(cont) },
+                trampoline = ::more,
                 consumedOk = { a, s, hs ->
-                    RunParser.Done(Reply(s, Consumption.Consumed, Result.Ok(hs, a)))
+                    done(Reply(s, Consumption.Consumed, Result.Ok(hs, a)))
                 },
                 consumedError = { err, s ->
-                    RunParser.Done(Reply(s, Consumption.Consumed, Result.Error(err)))
+                    done(Reply(s, Consumption.Consumed, Result.Error(err)))
                 },
                 emptyOk = { a, s, hs ->
-                    RunParser.Done(Reply(s, Consumption.NotConsumed, Result.Ok(hs, a)))
+                    done(Reply(s, Consumption.NotConsumed, Result.Ok(hs, a)))
                 },
                 emptyError = { err, s ->
-                    RunParser.Done<_, C, _>(Reply(s, Consumption.NotConsumed, Result.Error(err))) as RunParser<E, C, O>
+                    done(Reply(s, Consumption.NotConsumed, Result.Error(err)))
                 }
             )
         }
