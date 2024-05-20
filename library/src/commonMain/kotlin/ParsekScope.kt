@@ -2,19 +2,19 @@ import kotlin.Result
 import kotlin.coroutines.*
 import updateContext as _updateContext
 
-class ParsekScope<Error, Context, O> : Continuation<ParsekT<Error, Context, O>> {
+class ParsekScope<Error, Context, Output> : Continuation<ParsekT<Error, Context, Output>> {
 
     override val context: CoroutineContext = EmptyCoroutineContext
-    override fun resumeWith(result: Result<ParsekT<Error, Context, O>>) {
+    override fun resumeWith(result: Result<ParsekT<Error, Context, Output>>) {
         result.fold(
             onSuccess = { returnedParsekT = it },
             onFailure = { throw it }
         )
     }
 
-    private lateinit var returnedParsekT: ParsekT<Error, Context, O>
+    private lateinit var returnedParsekT: ParsekT<Error, Context, Output>
 
-    internal fun getParser(): ParsekT<Error, Context, O> = returnedParsekT
+    internal fun getParser(): ParsekT<Error, Context, Output> = returnedParsekT
 
 
     suspend fun context(): Context = !getContext<Context>()
