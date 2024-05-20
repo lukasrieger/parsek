@@ -30,6 +30,9 @@ sealed interface ParseError<out E> {
 }
 
 
+internal operator fun <E> ParseError<E>.plus(err: ParseError<E>): ParseError<E> = TODO("Not yet implemented")
+
+
 sealed interface ErrorItem<out T> {
 
     data class Tokens<T>(

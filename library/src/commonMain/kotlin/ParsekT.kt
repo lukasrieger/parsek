@@ -10,10 +10,10 @@ interface ParsekT<out Error, out Context, out Output> {
     fun <B> unparser(
         state: State<@UnsafeVariance Error, @UnsafeVariance Context>,
         trampoline: (() -> B) -> B,
-        consumedOk: (Output, State<Error, @UnsafeVariance Context>, Hints<Char>) -> B,
-        consumedError: (ParseError<Error>, State<Error, @UnsafeVariance Context>) -> B,
-        emptyOk: (Output, State<Error, @UnsafeVariance Context>, Hints<Char>) -> B,
-        emptyError: (ParseError<Error>, State<Error, @UnsafeVariance Context>) -> B
+        consumedOk: (Output, State<@UnsafeVariance Error, @UnsafeVariance Context>, Hints<Char>) -> B,
+        consumedError: (ParseError<Error>, State<@UnsafeVariance Error, @UnsafeVariance Context>) -> B,
+        emptyOk: (Output, State<@UnsafeVariance Error, @UnsafeVariance Context>, Hints<Char>) -> B,
+        emptyError: (ParseError<Error>, State<@UnsafeVariance Error, @UnsafeVariance Context>) -> B
     ): B
 }
 
@@ -230,7 +230,83 @@ fun <Output> pure(pure: Output): Parser<Output> =
     }
 
 
-fun <Error, Context, Output1, Output2> ParsekT<Error, Context, Output1>.bind(
+infix fun <Error, Context, Output1, Output2> ParsekT<Error, Context, Output1>.map(
+    fn: (Output1) -> Output2
+) = object : ParsekT<Error, Context, Output2> {
+    override fun <B> unparser(
+        state: State<Error, Context>,
+        trampoline: (() -> B) -> B,
+        consumedOk: (Output2, State<Error, Context>, Hints<Char>) -> B,
+        consumedError: (ParseError<Error>, State<Error, Context>) -> B,
+        emptyOk: (Output2, State<Error, Context>, Hints<Char>) -> B,
+        emptyError: (ParseError<Error>, State<Error, Context>) -> B
+    ): B = trampoline {
+        this@map.unparser(
+            state,
+            trampoline,
+            { a, b, c ->
+                trampoline {
+                    consumedOk(fn(a), b, c)
+                }
+            },
+            consumedError,
+            { a, b, c ->
+                trampoline {
+                    emptyOk(fn(a), b, c)
+                }
+            },
+            emptyError
+        )
+    }
+}
+
+infix fun <Error, Context, Output1> ParsekT<Error, Context, Output1>.or(
+    or: ParsekT<Error, Context, Output1>
+): ParsekT<Error, Context, Output1> = alt(or)
+
+internal fun <Error, Context, Output1> ParsekT<Error, Context, Output1>.alt(
+    or: ParsekT<Error, Context, Output1>
+): ParsekT<Error, Context, Output1> = object : ParsekT<Error, Context, Output1> {
+    override fun <B> unparser(
+        state: State<Error, Context>,
+        trampoline: (() -> B) -> B,
+        consumedOk: (Output1, State<Error, Context>, Hints<Char>) -> B,
+        consumedError: (ParseError<Error>, State<Error, Context>) -> B,
+        emptyOk: (Output1, State<Error, Context>, Hints<Char>) -> B,
+        emptyError: (ParseError<Error>, State<Error, Context>) -> B
+    ): B = trampoline {
+        this@alt.unparser(
+            state,
+            trampoline,
+            consumedOk,
+            consumedError,
+            emptyOk
+        ) { err, ms ->
+            or.unparser(
+                state,
+                trampoline,
+                consumedOk,
+                { a, b ->
+                    trampoline { consumedError(a + err, ms longestMatch b) }
+                },
+                { a, b, c ->
+                    trampoline { emptyOk(a, b, c) } // TODO : Merge hints
+                },
+                { a, b ->
+                    trampoline { emptyError(a + err, ms longestMatch b) }
+                }
+            )
+        }
+    }
+}
+
+
+fun <Error, Context, Output1, Output2> ParsekT<Error, Context, Output1>.flatMap(
+    fn: (Output1) -> ParsekT<Error, Context, Output2>
+): ParsekT<Error, Context, Output2> = bind(fn)
+
+
+internal fun <Error, Context, Output1, Output2> ParsekT<Error, Context, Output1>.bind(
     cont: (Output1) -> ParsekT<Error, Context, Output2>
 ): ParsekT<Error, Context, Output2> = object : ParsekT<Error, Context, Output2> {
     override fun <B> unparser(

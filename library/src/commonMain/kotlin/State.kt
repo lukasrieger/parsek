@@ -2,7 +2,7 @@
 data class ContextState<Context>(val context: Context)
 
 
-data class State<out E, C>(
+data class State<E, C>(
     /**
      * The rest input to process
      */
@@ -36,4 +36,8 @@ data class State<out E, C>(
             stateParseErrors = emptyList()
         )
     }
+}
+
+internal infix fun <E, C> State<E, C>.longestMatch(other: State<E, C>): State<E, C> {
+    TODO("Not yet implemented")
 }

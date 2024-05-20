@@ -2,7 +2,9 @@ data class St(val callCount: Int)
 
 val t1= pure("Hello!")
 
-val t2 = pure(0)
+val t2 = pure(0) map { "$it" }
+
+val tt3 = t1 or t2
 
 var i = 0
 val t3: ParsekT<Nothing, St, String>
@@ -29,8 +31,7 @@ fun t4() = doM {
 }
 
 
-
-fun tRec1(): ParsekT<Nothing, St, String> = doM {
+fun tRec1() = doM {
     val x = !t1
 
     i += 1
