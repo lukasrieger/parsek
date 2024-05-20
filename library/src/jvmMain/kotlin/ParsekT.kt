@@ -297,10 +297,19 @@ sealed interface Step<out A, out B> {
     data class Loop<A>(val a: A) : Step<A, Nothing>
 }
 
+internal typealias InitRec<Error, Context, Output> =
+            () -> RunParser<Error, Context, Output>
+
+internal typealias StepRec<Error, Context, Output> =
+        Step<InitRec<Error, Context, Output>, Reply<Error, Context, Output>>
+
+internal typealias RunRec<Error, Context, Output> =
+            (InitRec<Error, Context, Output>) -> StepRec<Error, Context, Output>
+
 
 internal fun <Error, Context, Output> tailRec(
-    next: (() -> RunParser<Error, Context, Output>) -> Step<() -> RunParser<Error, Context, Output>, Reply<Error, Context, Output>>,
-    initial: () -> RunParser<Error, Context, Output>
+    next: RunRec<Error, Context, Output>,
+    initial: InitRec<Error, Context, Output>
 ): Reply<Error, Context, Output> {
     tailrec fun loop(arg: () -> RunParser<Error, Context, Output>): Reply<Error, Context, Output> =
         when (val k = next(arg)) {
@@ -312,9 +321,17 @@ internal fun <Error, Context, Output> tailRec(
 }
 
 
-fun <Error, Context, Output> runParsekT(
-    parser: ParsekT<Error, Context, Output>,
-    initialState: State<Error, Context>
+fun <Error, Output> ParsekT<Error, Nothing, Output>.runParsekT(
+    name: FilePath,
+    input: String
+): Reply<Error, Unit, Output> = runParsekT(name = name, input = input, context = Unit)
+
+
+fun <Error, Context, Output> ParsekT<Error, Context, Output>.runParsekT(
+    name: FilePath,
+    input: String,
+    context: Context,
+    initialState: State<Error, Context> = State.initial(name, input, context)
 ): Reply<Error, Context, Output> {
     tailrec fun go(
         n: () -> RunParser<Error, Context, Output>
@@ -324,7 +341,7 @@ fun <Error, Context, Output> runParsekT(
     }
 
     return tailRec(::go) {
-        parser.unparser(
+        unparser(
             state = initialState,
             trampoline = ::more,
             consumedOk = { a, s, hs ->

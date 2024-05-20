@@ -46,7 +46,7 @@ fun <E, C, O> doM(@BuilderInference f: suspend ParsekScope<E, C, O>.() -> O): Pa
 
 data class St(val callCount: Int)
 
-val t1: ParsekT<Nothing, St, String> = pure("Hello!")
+val t1: ParsekT<Nothing, Nothing, String> = pure("Hello!")
 
 val t2: ParsekT<Nothing, Nothing, Int> = pure(0)
 
@@ -100,30 +100,5 @@ fun <E, C, O> ref(
 
 
 fun main() {
-    St(0).run {
-
-        println(
-            runParsekT(
-                t3,
-                State(
-                    stateInput = "",
-                    stateContext = ContextState(St(0)),
-                    stateOffset = 0,
-                    statePosState = PosState(
-                        pStateLinePrefix = "",
-                        pStateOffset = 0,
-                        pStateInput = "",
-                        pStateTabWidth = Pos(4),
-                        pStateSourcePos = SourcePos(
-                            sourceColumn = Pos(0),
-                            sourceLine = Pos(0),
-                            sourceName = Path("")
-                        )
-                    ),
-                    stateParseErrors = emptyList()
-                )
-            ).result
-        )
-    }
-
+    println(t4().runParsekT("emptyPath", "Hello World!"))
 }

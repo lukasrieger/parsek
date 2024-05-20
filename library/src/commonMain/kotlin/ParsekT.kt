@@ -52,7 +52,21 @@ data class State<out E, C>(
      * This means that the last error is the first element of the list.
      */
     val stateParseErrors: List<ParseError<E>>
-)
+) {
+    companion object {
+        fun <Error, Context> initial(
+            name: FilePath,
+            input: String,
+            context: Context
+        ): State<Error, Context> = State(
+            stateInput = input,
+            stateContext = ContextState(context),
+            stateOffset = 0,
+            statePosState = PosState.initial(name, input),
+            stateParseErrors = emptyList()
+        )
+    }
+}
 
 
 
