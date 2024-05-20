@@ -301,7 +301,7 @@ internal fun <Error, Context, Output> tailRec(
 
 fun <Error, Output> ParsekT<Error, Nothing, Output>.runParsekT(
     input: String,
-    name: FilePath
+    name: FilePath = FilePath.empty()
 ): Reply<Error, Unit, Output> = runParsekT(name = name, input = input, context = Unit)
 
 
