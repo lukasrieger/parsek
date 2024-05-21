@@ -1,8 +1,5 @@
-
-
-
-data class Reply<E, C, A>(
-    val state: State<E, C>,
+data class Reply<S : Stream<*, *>, E, C, A>(
+    val state: State<S, E, C>,
     val consumption: Consumption,
     val result: Result<E, A>
 )
@@ -24,17 +21,17 @@ enum class Consumption {
 
 data class Hints<T>(val hints: Set<ErrorItem<T>>) {
     companion object {
-        fun <T> empty(): Hints<T> = Hints(hints = emptySet())
+        fun empty(): Hints<Nothing> = Hints(hints = emptySet())
     }
 }
 
 
 sealed interface Result<out E, out A> {
 
-    data class Ok<A>(val hints: Hints<Char>, val result: A) : Result<Nothing, A>
+    data class Ok<A>(val hints: Hints<*>, val result: A) : Result<Nothing, A>
 
 
-    data class Error<E>(val error: ParseError<E>) : Result<E, Nothing>
+    data class Error<S, E>(val error: ParseError<S, E>) : Result<E, Nothing>
 
 }
 

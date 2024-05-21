@@ -1,52 +1,52 @@
 data class St(val callCount: Int)
 
-val t1= pure("Hello!")
+val t1: ParserE<StringStream, Throwable, String> = string("Hello!")
 
-val t2 = pure(0) map { "$it" }
-
-val tt3 = t1 or t2
+val tt3 = t1 or t1
 
 var i = 0
-val t3: ParsekT<Nothing, St, String>
-    get() = doM {
-        !t1
 
-        updateContext {
-            it.copy(callCount = it.callCount + 1)
-        }
+val t3: Parser<StringStream, String> = doM { "1" }
 
-        val currentContext = context()
-
-        println(currentContext.callCount)
-
-        !t3
-        "1"
-    }
-
-fun t4() = doM {
+fun t4(): ParsekT<StringStream, Any, Any, String> = doM {
     val x = !t1
-    val y = !t2
 
-    "$x -> $y"
+    "$x -> $x"
 }
 
 
-fun tRec1() = doM {
-    val x = !t1
+val consumeA = char<String>('a') or char('b')
 
+val ttt65: ParsekT<StringStream, Any, Int, String> = doM {
+    !string("Hello World!")
+
+    updateContext {
+        val x: Number = 0
+
+        0
+    }
+
+
+    val x = !getContext<StringStream, Int>()
+
+
+    "TODO()"
+}
+
+fun tRec1(): ParserE<StringStream, Throwable, String> = doM {
     i += 1
     println("Recursive and safe 1  $i")
     !tRec2()
 }
 
-fun tRec2(): ParsekT<Nothing, St, String> = doM {
-    val x = !t1
-
+fun tRec2() = doM {
     println("Recursive and safe 2")
     !tRec1()
 }
 
 
 fun main() {
-    println(t4().runParsekT( "Hello World!"))
+    val result =
+        consumeA.runParsekT(Stream.of("cb Hello World!"), context = 0)
+    println(result)
 }

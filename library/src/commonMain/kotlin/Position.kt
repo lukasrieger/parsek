@@ -34,11 +34,11 @@ value class Pos(val pos: Int) {
 }
 
 
-data class PosState(
+data class PosState<S>(
     /**
      * The rest of input to process
      */
-    val pStateInput: String,
+    val pStateInput: S,
     /**
      * Offset corresponding to beginning of [pStateInput]
      */
@@ -57,7 +57,7 @@ data class PosState(
     val pStateLinePrefix: String
 ) {
     companion object {
-        fun initial(name: FilePath, input: String): PosState = PosState(
+        fun <S> initial(name: FilePath, input: S): PosState<S> = PosState(
             pStateInput = input,
             pStateOffset = 0,
             pStateSourcePos = SourcePos.initial(name),
