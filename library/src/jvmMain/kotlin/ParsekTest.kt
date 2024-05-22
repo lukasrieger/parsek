@@ -17,6 +17,8 @@ fun t4(): ParsekT<StringStream, Any, Any, String> = doM {
 
 val consumeA = char<String>('a') or char('b')
 
+val orTest = string("ab") or string("ac")
+
 val ttt65: ParsekT<StringStream, Any, Int, String> = doM {
     !string("Hello World!")
 
@@ -29,6 +31,7 @@ val ttt65: ParsekT<StringStream, Any, Int, String> = doM {
 
     val x = !getContext<StringStream, Int>()
 
+    val y = !consumeA
 
     "TODO()"
 }
@@ -47,6 +50,6 @@ fun tRec2() = doM {
 
 fun main() {
     val result =
-        consumeA.runParsekT(Stream.of("cb Hello World!"), context = 0)
+        ttt65.runParsekT(Stream.of("ab Hello World!"), context = 0)
     println(result)
 }

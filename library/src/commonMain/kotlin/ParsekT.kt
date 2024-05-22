@@ -56,8 +56,91 @@ fun <S : Stream<*, *>, Error, Context, Output> ParsekT<S, Error, Context, Output
                 { err, _ -> emptyError(err, state) }
             )
         }
-
     }
+
+
+fun <S : Stream<*, *>, Error, Context, Output> ParsekT<S, Error, Context, Output>.lookAhead() =
+    object : ParsekT<S, Error, Context, Output> {
+        override fun <B> unparser(
+            state: State<S, Error, Context>,
+            trampoline: (() -> B) -> B,
+            consumedOk: (Output, State<S, Error, Context>, Hints<*>) -> B,
+            consumedError: (ParseError<*, Error>, State<S, Error, Context>) -> B,
+            emptyOk: (Output, State<S, Error, Context>, Hints<*>) -> B,
+            emptyError: (ParseError<*, Error>, State<S, Error, Context>) -> B
+        ): B = trampoline {
+            this@lookAhead.unparser(
+                state,
+                trampoline,
+                { a, _, _ -> emptyOk(a, state, Hints.empty()) },
+                consumedError,
+                { a, _, _ -> emptyOk(a, state, Hints.empty()) },
+                emptyError
+            )
+        }
+    }
+
+fun <Token, S : Stream<*, Token>, Error, Context, Output> ParsekT<S, Error, Context, Output>.notFollowedBy() =
+    object : ParsekT<S, Error, Context, Unit> {
+        override fun <B> unparser(
+            state: State<S, Error, Context>,
+            trampoline: (() -> B) -> B,
+            consumedOk: (Unit, State<S, Error, Context>, Hints<*>) -> B,
+            consumedError: (ParseError<*, Error>, State<S, Error, Context>) -> B,
+            emptyOk: (Unit, State<S, Error, Context>, Hints<*>) -> B,
+            emptyError: (ParseError<*, Error>, State<S, Error, Context>) -> B
+        ): B {
+            val what = state.stateInput.uncons()
+                ?.first
+                ?.let { ErrorItem.Tokens(nonEmptyListOf(it)) } ?: ErrorItem.EndOfInput
+
+            fun unexpected(item: ErrorItem<Token>) =
+                ParseError.TrivialError<S, Token>(state.stateOffset, item, emptySet())
+
+            return trampoline {
+                this@notFollowedBy.unparser(
+                    state,
+                    trampoline,
+                    { _, _, _ -> emptyError(unexpected(what), state) },
+                    { _, _ -> emptyOk(Unit, state, Hints.empty()) },
+                    { _, _, _ -> emptyError(unexpected(what), state) },
+                    { _, _ -> emptyOk(Unit, state, Hints.empty()) },
+                )
+            }
+        }
+    }
+
+
+fun <S : Stream<*, *>, Error, Context, B> withHints(
+    hints: Hints<*>,
+    continuation: (ParseError<*, Error>, State<S, Error, Context>) -> B
+): (ParseError<*, Error>, State<S, Error, Context>) -> B = { error, state ->
+    when (error) {
+        is ParseError.TrivialError<*, *> -> continuation(
+            ParseError.TrivialError<S, Any?>(error.offset, error.unexpected, error.expected + hints.hints),
+            state
+        )
+
+        else -> continuation(error, state)
+    }
+}
+
+fun <S : Stream<*, *>, Error, Context, A, B> accHints(
+    hints1: Hints<*>,
+    okContinuation: (A, State<S, Error, Context>, Hints<*>) -> B,
+): (A, State<S, Error, Context>, Hints<*>) -> B = { input, state, hints2 ->
+    okContinuation(input, state, Hints(hints1.hints + hints2.hints))
+}
+
+
+fun <Token> refreshHints(
+    hints: Hints<Token>,
+    error: ErrorItem<Token>?
+) = when {
+    error == null -> Hints.empty()
+    hints.hints.isEmpty() -> hints
+    else -> Hints(setOf(error))
+}
 
 
 fun <Tokens : Any, Token : Any, Error, Context, Output> token(
@@ -75,7 +158,11 @@ fun <Tokens : Any, Token : Any, Error, Context, Output> token(
         ): B = when (val taken = state.stateInput.uncons()) {
             null ->
                 emptyError(
-                    ParseError.TrivialError(state.stateOffset, ErrorItem.EndOfInput, errorItems),
+                    ParseError.TrivialError<Stream<Tokens, Token>, Token>(
+                        state.stateOffset,
+                        ErrorItem.EndOfInput,
+                        errorItems
+                    ),
                     state
                 )
 
@@ -85,7 +172,7 @@ fun <Tokens : Any, Token : Any, Error, Context, Output> token(
                 when (val res = test(current)) {
                     null ->
                         emptyError(
-                            ParseError.TrivialError(
+                            ParseError.TrivialError<Stream<Tokens, Token>, Token>(
                                 state.stateOffset,
                                 ErrorItem.Tokens(nonEmptyListOf(current)),
                                 errorItems
@@ -345,8 +432,8 @@ internal fun <S : Stream<*, *>, Error, Context, Output1, Output2> ParsekT<S, Err
                         trampoline,
                         consumedOk,
                         consumedError,
-                        emptyOk,
-                        emptyError
+                        accHints(c, consumedOk),
+                        withHints(c, consumedError)
                     )
                 }
             },
@@ -358,16 +445,27 @@ internal fun <S : Stream<*, *>, Error, Context, Output1, Output2> ParsekT<S, Err
                         trampoline,
                         consumedOk,
                         consumedError,
-                        emptyOk,
-                        emptyError
+                        accHints(c, emptyOk),
+                        withHints(c, emptyError)
                     )
                 }
             },
             emptyError
         )
     }
-
 }
+
+internal fun <S : Stream<*, *>, Output> zero(): Parser<S, Output> =
+    object : Parser<S, Output> {
+        override fun <B> unparser(
+            state: State<S, Nothing, Any>,
+            trampoline: (() -> B) -> B,
+            consumedOk: (Output, State<S, Nothing, Any>, Hints<*>) -> B,
+            consumedError: (ParseError<*, Nothing>, State<S, Nothing, Any>) -> B,
+            emptyOk: (Output, State<S, Nothing, Any>, Hints<*>) -> B,
+            emptyError: (ParseError<*, Nothing>, State<S, Nothing, Any>) -> B
+        ): B = emptyError(ParseError.TrivialError<S, Any>(state.stateOffset, null, emptySet()), state)
+    }
 
 
 internal typealias InitRec<Stream, Error, Context, Output> =

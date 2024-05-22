@@ -1,3 +1,5 @@
+import kotlin.jvm.JvmInline
+
 interface Stream<S : Any, X : Any> {
     fun uncons(): Pair<X, Stream<S, X>>?
 
@@ -12,7 +14,8 @@ interface Stream<S : Any, X : Any> {
 typealias StringStream = Stream<String, Char>
 typealias ListStream<T> = Stream<List<T>, T>
 
-private data class StringStreamImpl(private val input: String) : StringStream {
+@JvmInline
+private value class StringStreamImpl(private val input: String) : StringStream {
     override fun uncons(): Pair<Char, Stream<String, Char>>? =
         input.firstOrNull()?.let { it to StringStreamImpl(input.drop(1)) }
 
@@ -23,8 +26,8 @@ private data class StringStreamImpl(private val input: String) : StringStream {
     }
 }
 
-
-data class ListStreamImpl<T : Any>(private val input: List<T>) : Stream<List<T>, T> {
+@JvmInline
+value class ListStreamImpl<T : Any>(private val input: List<T>) : Stream<List<T>, T> {
     override fun uncons(): Pair<T, Stream<List<T>, T>>? =
         input.firstOrNull()?.let { it to ListStreamImpl(input.drop(1)) }
 
@@ -33,5 +36,4 @@ data class ListStreamImpl<T : Any>(private val input: List<T>) : Stream<List<T>,
     } else {
         input.take(n) to ListStreamImpl(input.drop(n))
     }
-
 }
