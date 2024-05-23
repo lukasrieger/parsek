@@ -1,8 +1,6 @@
 import Trampoline.Companion.done
 import Trampoline.Companion.more
-import arrow.core.Either
-import arrow.core.NonEmptyList
-import arrow.core.nonEmptyListOf
+import arrow.core.*
 import kotlin.math.max
 
 
@@ -541,24 +539,30 @@ fun <S : Stream<*, *>, Error, Context, Output> ParsekT<S, Error, Context, Output
         emptyError: (ParseError<*, Error>, State<S, Error, Context>) -> B
     ): B = trampoline {
         fun consumedErrorM(error: ParseError<*, Error>, s: State<S, Error, Context>) =
-            recoverBy(error).unparser(
-                s,
-                trampoline,
-                { a, b, _ -> consumedOk(a, b, Hints.empty()) },
-                { _, _ -> consumedError(error, s) },
-                { a, b, _ -> emptyOk(a, b, Hints.toHints(b.stateOffset, error)) },
-                { _, _ -> consumedError(error, s) }
-            )
+            trampoline {
+                recoverBy(error).unparser(
+                    s,
+                    trampoline,
+                    { a, b, _ -> consumedOk(a, b, Hints.empty()) },
+                    { _, _ -> consumedError(error, s) },
+                    { a, b, _ -> emptyOk(a, b, Hints.toHints(b.stateOffset, error)) },
+                    { _, _ -> consumedError(error, s) }
+                )
+            }
+
 
         fun emptyErrorM(error: ParseError<*, Error>, s: State<S, Error, Context>) =
-            recoverBy(error).unparser(
-                s,
-                trampoline,
-                { a, b, _ -> consumedOk(a, b, Hints.toHints(b.stateOffset, error)) },
-                { _, _ -> consumedError(error, s) },
-                { a, b, _ -> emptyOk(a, b, Hints.toHints(b.stateOffset, error)) },
-                { _, _ -> consumedError(error, s) }
-            )
+            trampoline {
+                recoverBy(error).unparser(
+                    s,
+                    trampoline,
+                    { a, b, _ -> consumedOk(a, b, Hints.toHints(b.stateOffset, error)) },
+                    { _, _ -> consumedError(error, s) },
+                    { a, b, _ -> emptyOk(a, b, Hints.toHints(b.stateOffset, error)) },
+                    { _, _ -> consumedError(error, s) }
+                )
+            }
+
 
         this@withRecovery.unparser(
             state,
@@ -863,3 +867,23 @@ fun <S : Stream<*, *>, Error, Context, Output> ParsekT<S, Error, Context, Output
         )
     }
 }
+
+fun <S : Stream<*, *>, Error, Output> ParsekT<S, Error, Any, Output>.runParser(
+    input: S,
+    name: FilePath = FilePath.empty()
+): Either<ParseErrorBundle<S, Error>, Output> {
+    val reply = runParsekT(input, name)
+
+    fun toBundle(errors: NonEmptyList<ParseError<S, Error>>) = ParseErrorBundle(
+        bundleErrors = errors.sortedBy { it.offset }.toNonEmptyListOrNull()!!,
+        bundlePosState = reply.state.statePosState
+    )
+
+    @Suppress("unchecked_cast")
+    return when (reply.result) {
+        is Result.Error<*, *> -> Either.Left(toBundle(nonEmptyListOf(reply.result.error) as NonEmptyList<ParseError<S, Error>>))
+        is Result.Ok -> Either.Right(reply.result.result)
+    }
+}
+
+

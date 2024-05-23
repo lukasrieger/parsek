@@ -18,6 +18,16 @@ data class SourcePos(
             sourceColumn = Pos.Pos1
         )
     }
+
+    fun pretty(): String {
+        val lc = sourceLine.pos.toString() + ":" + sourceColumn.pos.toString()
+
+        return if (sourceName.isEmpty()) {
+            lc
+        } else {
+            "$sourceName:$lc"
+        }
+    }
 }
 
 
@@ -36,7 +46,7 @@ value class Pos(val pos: Int) : Comparable<Pos> {
 }
 
 
-data class PosState<S>(
+data class PosState<S : Stream<*, *>>(
     /**
      * The rest of input to process
      */
@@ -59,7 +69,7 @@ data class PosState<S>(
     val pStateLinePrefix: String
 ) {
     companion object {
-        fun <S> initial(name: FilePath, input: S): PosState<S> = PosState(
+        fun <S : Stream<*, *>> initial(name: FilePath, input: S): PosState<S> = PosState(
             pStateInput = input,
             pStateOffset = 0,
             pStateSourcePos = SourcePos.initial(name),
@@ -67,4 +77,11 @@ data class PosState<S>(
             pStateLinePrefix = ""
         )
     }
+
+    fun reachOffset(offset: Int): Pair<String?, PosState<S>> = null to reachOffsetNoLine(offset)
+
+    private fun reachOffsetNoLine(offset: Int): PosState<S> = this
 }
+
+
+

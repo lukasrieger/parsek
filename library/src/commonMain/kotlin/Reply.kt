@@ -29,7 +29,6 @@ data class Hints<T>(val hints: Set<ErrorItem<T>>) {
             } else {
                 empty()
             }
-
             else -> empty()
         }
     }
@@ -38,10 +37,10 @@ data class Hints<T>(val hints: Set<ErrorItem<T>>) {
 
 sealed interface Result<out E, out A> {
 
-    data class Ok<A>(val hints: Hints<*>, val result: A) : Result<Nothing, A>
+    data class Ok<out A>(val hints: Hints<*>, val result: A) : Result<Nothing, A>
 
 
-    data class Error<S, E>(val error: ParseError<S, E>) : Result<E, Nothing>
+    data class Error<out S, out E>(val error: ParseError<S, E>) : Result<E, Nothing>
 
 }
 

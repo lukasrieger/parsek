@@ -1,17 +1,27 @@
 package util
 
+sealed interface Ordering<A, B> {
+    val a: A
+    val b: B
 
-enum class Ordering {
-    LT, EQ, GT
+    operator fun component1(): A = a
+    operator fun component2(): B = b
+
+    data class LT<A, B>(override val a: A, override val b: B) : Ordering<A, B>
+
+    data class EQ<A, B>(override val a: A, override val b: B) : Ordering<A, B>
+
+    data class GT<A, B>(override val a: A, override val b: B) : Ordering<A, B>
+
 }
 
 
-infix fun <A> A.compare(other: A): Ordering where A : Comparable<A> {
+infix fun <A> A.compare(other: A): Ordering<A, A> where A : Comparable<A> {
     val ord = this.compareTo(other)
     return when {
-        ord == 0 -> Ordering.EQ
-        ord > 0 -> Ordering.GT
-        ord < 0 -> Ordering.LT
+        ord == 0 -> Ordering.EQ(this, other)
+        ord > 0 -> Ordering.GT(this, other)
+        ord < 0 -> Ordering.LT(this, other)
         else -> error("unreachable.")
     }
 }

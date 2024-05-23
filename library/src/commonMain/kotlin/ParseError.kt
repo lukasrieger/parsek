@@ -1,6 +1,21 @@
 import arrow.core.NonEmptyList
 import util.Ordering
 import util.compare
+import kotlin.math.max
+
+private val ErrorItem<*>.errorItemLength: Int
+    get() = when (this) {
+        is ErrorItem.Tokens -> this.tokens.map { it.toString().length }.sum()
+        else -> 1
+    }
+
+
+private val ErrorFancy<*>.errorFancyLength: Int
+    get() = when (this) {
+        is ErrorFancy.ErrorCustom -> error.toString().length
+        else -> 1
+    }
+
 
 sealed interface ParseError<out S, out E> {
 
@@ -43,7 +58,7 @@ infix fun <S, E> ParseError<S, E>.merge(other: ParseError<S, E>): ParseError<S, 
     }
 
     return when (offset compare other.offset) {
-        Ordering.EQ -> when {
+        is Ordering.EQ -> when {
             this is ParseError.TrivialError<*, *> && other is ParseError.TrivialError<*, *> -> {
                 ParseError.TrivialError(
                     this.offset,
@@ -60,8 +75,8 @@ infix fun <S, E> ParseError<S, E>.merge(other: ParseError<S, E>): ParseError<S, 
             else -> error("unreachable.")
         }
 
-        Ordering.GT -> this
-        Ordering.LT -> other
+        is Ordering.GT -> this
+        is Ordering.LT -> other
     }
 }
 
@@ -93,17 +108,138 @@ sealed interface ErrorFancy<out E> : Comparable<ErrorFancy<*>> {
 
     data class ErrorFail(val error: String) : ErrorFancy<Nothing>
 
-    data class ErrorIndentation(val error: Ordering) : ErrorFancy<Nothing>
+    data class ErrorIndentation(val error: Ordering<Pos, Pos>) : ErrorFancy<Nothing>
 
     data class ErrorCustom<E>(val error: E) : ErrorFancy<E>
 
 }
 
-data class ParseErrorBundle<S, E>(
+data class ParseErrorBundle<S : Stream<*, *>, E>(
     val bundleErrors: NonEmptyList<ParseError<S, E>>,
     val bundlePosState: PosState<S>
 ) {
 
-    override fun toString(): String = super.toString()
-
+    override fun toString(): String = pretty()
 }
+
+
+fun ParseErrorBundle<*, *>.pretty(): String {
+    fun f(posState: PosState<*>, error: ParseError<*, *>): String {
+        val (msline, pst) = posState.reachOffset(error.offset)
+
+        val epos = pst.pStateSourcePos
+
+        val offendingLine: String = when (msline) {
+            null -> ""
+            else -> {
+                val slineLen = msline.length
+                val rpShift = epos.sourceColumn.pos - 1
+                val lineNumber = epos.sourceLine.pos.toString()
+                val padding = " ".repeat(lineNumber.length + 1)
+                val elen = when (error) {
+                    is ParseError.FancyError -> error.errors.fold(1) { a, b ->
+                        max(a, b.errorFancyLength)
+                    }
+
+                    is ParseError.TrivialError<*, *> -> if (error.unexpected == null) {
+                        1
+                    } else {
+                        error.unexpected.errorItemLength
+                    }
+                }
+                val pointerLen = if (rpShift + elen > slineLen) {
+                    slineLen - rpShift + 1
+                } else {
+                    elen
+                }
+                val rpadding = if (pointerLen > 0) " ".repeat(rpShift) else ""
+                val pointer = "^".repeat(pointerLen)
+
+                buildString {
+                    append(padding)
+                    append("|\n")
+                    append(lineNumber)
+                    append(" | ")
+                    append(msline)
+                    append("| ")
+                    append(rpadding)
+                    append(pointer)
+                    append("\n")
+                }
+            }
+        }
+
+        return buildString {
+            append("\n")
+            append(epos.pretty())
+            append(":\n")
+            append(offendingLine)
+            append(error.textPretty())
+        }
+    }
+
+    return this.bundleErrors.fold("") { acc, b ->
+        acc + f(bundlePosState, b)
+    }
+}
+
+
+private fun ParseError<*, *>.pretty(): String =
+    "offset=" + offset + ":\n" + textPretty()
+
+private fun ParseError<*, *>.textPretty(): String = when (this) {
+    is ParseError.FancyError -> {
+        if (errors.isEmpty()) {
+            "unknown fancy parse error\n"
+        } else {
+            errors.toList().sorted().joinToString("\n") { it.pretty() }
+        }
+    }
+
+    is ParseError.TrivialError<*, *> -> {
+        if (unexpected == null && expected.isEmpty()) {
+            "unknown parse error\n"
+        } else {
+            errorItemsPretty(
+                prefix = "unexpected ",
+                messages = setOfNotNull(unexpected).map { it.pretty() }.toSet()
+            ) + errorItemsPretty(
+                prefix = "expecting ",
+                messages = expected.map { it.pretty() }.toSet()
+            )
+        }
+    }
+}
+
+private fun ErrorItem<*>.pretty(): String = when (this) {
+    is ErrorItem.EndOfInput -> "end of input"
+    is ErrorItem.Label -> label
+    is ErrorItem.Tokens -> tokens.joinToString("")
+}
+
+private fun <E> ErrorFancy<E>.pretty(): String = when (val err = this) {
+    is ErrorFancy.ErrorCustom -> err.error.toString()
+    is ErrorFancy.ErrorFail -> err.error
+    is ErrorFancy.ErrorIndentation -> buildString {
+        val (ref, actual) = err.error
+        val p = when (err.error) {
+            is Ordering.EQ -> "equal to "
+            is Ordering.GT -> "greater than "
+            is Ordering.LT -> "less than "
+        }
+
+        append("incorrect indentation (got")
+        append(actual.pos)
+        append(", should be")
+        append(p)
+        append(ref.pos)
+        append(")")
+    }
+}
+
+private fun errorItemsPretty(prefix: String, messages: Set<String>): String = when {
+    messages.isEmpty() -> ""
+    else -> prefix + messages.toList().orList() + "\n"
+}
+
+private fun List<String>.orList(): String = joinToString(" or ")
