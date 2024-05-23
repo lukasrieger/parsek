@@ -42,6 +42,8 @@ value class Pos(val pos: Int) : Comparable<Pos> {
         val DefaultTabWidth = Pos(8)
     }
 
+    operator fun plus(other: Pos) = Pos(pos + other.pos)
+
     override fun compareTo(other: Pos): Int = this.pos compareTo other.pos
 }
 
@@ -77,10 +79,6 @@ data class PosState<S : Stream<*, *>>(
             pStateLinePrefix = ""
         )
     }
-
-    fun reachOffset(offset: Int): Pair<String?, PosState<S>> = pStateInput.toString() to reachOffsetNoLine(offset)
-
-    private fun reachOffsetNoLine(offset: Int): PosState<S> = this
 }
 
 

@@ -124,8 +124,9 @@ data class ParseErrorBundle<S : Stream<*, *>, E>(
 
 
 fun ParseErrorBundle<*, *>.pretty(): String {
-    fun f(posState: PosState<*>, error: ParseError<*, *>): String {
-        val (msline, pst) = posState.reachOffset(error.offset)
+    fun f(posState: PosState<out Stream<*, *>>, error: ParseError<*, *>): String {
+        val (msline, pst) =
+            posState.pStateInput.reachOffset(error.offset, posState)
 
         val epos = pst.pStateSourcePos
 
@@ -136,6 +137,7 @@ fun ParseErrorBundle<*, *>.pretty(): String {
                 val rpShift = epos.sourceColumn.pos - 1
                 val lineNumber = epos.sourceLine.pos.toString()
                 val padding = " ".repeat(lineNumber.length + 1)
+
                 val elen = when (error) {
                     is ParseError.FancyError -> error.errors.fold(1) { a, b ->
                         max(a, b.errorFancyLength)
@@ -161,6 +163,8 @@ fun ParseErrorBundle<*, *>.pretty(): String {
                     append(lineNumber)
                     append(" | ")
                     append(msline)
+                    append("\n")
+                    append(padding)
                     append("| ")
                     append(rpadding)
                     append(pointer)
@@ -214,7 +218,7 @@ private fun ParseError<*, *>.textPretty(): String = when (this) {
 private fun ErrorItem<*>.pretty(): String = when (this) {
     is ErrorItem.EndOfInput -> "end of input"
     is ErrorItem.Label -> label
-    is ErrorItem.Tokens -> tokens.joinToString("")
+    is ErrorItem.Tokens -> tokens.joinToString("") { it.prettyChar() ?: it.toString() }
 }
 
 private fun <E> ErrorFancy<E>.pretty(): String = when (val err = this) {
@@ -243,3 +247,12 @@ private fun errorItemsPretty(prefix: String, messages: Set<String>): String = wh
 }
 
 private fun List<String>.orList(): String = joinToString(" or ")
+
+
+fun Any?.prettyChar() = when (this) {
+    ' ' -> "space"
+    '\t' -> "tab"
+    '\n' -> "newline"
+    '\r' -> "carriage return"
+    else -> null
+}?.let { "<$it>" }

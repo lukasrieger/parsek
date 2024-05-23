@@ -19,21 +19,11 @@ val consumeA = char<String>('a') or char('b')
 
 val orTest = string("ab") or string("ac")
 
-val ttt65: ParsekT<StringStream, Any, Int, String> = doM {
-    !string("Hello World!")
-
-    updateContext {
-        val x: Number = 0
-
-        0
-    }
-
-
-    val x = !getContext<StringStream, Int>()
-
-    val y = !consumeA
-
-    "TODO()"
+val ttt65: Parser<StringStream, Unit> = doM {
+    !char<String>('a')
+    !char<String>('b')
+    !char<String>('c')
+    !(char<String>('a') or char('b'))
 }
 
 fun tRec1(): ParserE<StringStream, Throwable, String> = doM {
@@ -50,6 +40,6 @@ fun tRec2() = doM {
 
 fun main() {
     val result =
-        consumeA.runParser(Stream.of("cab Hello World!"))
+        ttt65.runParser(Stream.of("abc Hello World!"))
     println(result)
 }
