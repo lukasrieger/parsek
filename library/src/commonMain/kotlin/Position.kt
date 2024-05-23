@@ -78,7 +78,7 @@ data class PosState<S : Stream<*, *>>(
         )
     }
 
-    fun reachOffset(offset: Int): Pair<String?, PosState<S>> = null to reachOffsetNoLine(offset)
+    fun reachOffset(offset: Int): Pair<String?, PosState<S>> = pStateInput.toString() to reachOffsetNoLine(offset)
 
     private fun reachOffsetNoLine(offset: Int): PosState<S> = this
 }

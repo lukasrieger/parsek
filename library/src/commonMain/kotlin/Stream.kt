@@ -21,6 +21,9 @@ typealias ListStream<T> = Stream<List<T>, T>
 
 @JvmInline
 private value class StringStreamImpl(private val input: String) : StringStream {
+
+    override fun toString(): String = input
+
     override fun uncons(): Pair<Char, Stream<String, Char>>? =
         input.firstOrNull()?.let { it to StringStreamImpl(input.drop(1)) }
 
