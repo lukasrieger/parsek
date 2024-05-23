@@ -50,6 +50,6 @@ fun tRec2() = doM {
 
 fun main() {
     val result =
-        ttt65.runParsekT(Stream.of("ab Hello World!"), context = 0)
+        consumeA.runParsekT(Stream.of("ccab Hello World!"), context = 0)
     println(result)
 }

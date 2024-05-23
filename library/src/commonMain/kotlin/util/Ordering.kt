@@ -1,11 +1,17 @@
 package util
 
-sealed interface Ordering<A, B> {
 
-    data class LT<A, B>(val a: A, val b: B) : Ordering<A, B>
+enum class Ordering {
+    LT, EQ, GT
+}
 
-    data class EQ<A, B>(val a: A, val b: B) : Ordering<A, B>
 
-    data class GT<A, B>(val a: A, val b: B) : Ordering<A, B>
-
+infix fun <A> A.compare(other: A): Ordering where A : Comparable<A> {
+    val ord = this.compareTo(other)
+    return when {
+        ord == 0 -> Ordering.EQ
+        ord > 0 -> Ordering.GT
+        ord < 0 -> Ordering.LT
+        else -> error("unreachable.")
+    }
 }

@@ -22,6 +22,16 @@ enum class Consumption {
 data class Hints<T>(val hints: Set<ErrorItem<T>>) {
     companion object {
         fun empty(): Hints<Nothing> = Hints(hints = emptySet())
+
+        fun <S, E> toHints(pos: Int, error: ParseError<S, E>) = when (error) {
+            is ParseError.TrivialError<*, *> -> if (pos == error.offset) {
+                Hints(error.expected.takeIf { it.isNotEmpty() } ?: emptySet())
+            } else {
+                empty()
+            }
+
+            else -> empty()
+        }
     }
 }
 

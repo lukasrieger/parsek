@@ -1,7 +1,9 @@
 import Trampoline.Companion.done
 import Trampoline.Companion.more
+import arrow.core.Either
 import arrow.core.NonEmptyList
 import arrow.core.nonEmptyListOf
+import kotlin.math.max
 
 
 interface ParsekT<S : Stream<*, *>, out Error, in Context, out Output> {
@@ -269,14 +271,339 @@ internal fun <Tokens : Any, Token : Any, Error, Context> tokens(
                 }
             }
         }
-
-
     }
+
+fun <S : Stream<*, *>> eof(): Parser<S, Unit> =
+    object : Parser<S, Unit> {
+        override fun <B> unparser(
+            state: State<S, Nothing, Any>,
+            trampoline: (() -> B) -> B,
+            consumedOk: (Unit, State<S, Nothing, Any>, Hints<*>) -> B,
+            consumedError: (ParseError<*, Nothing>, State<S, Nothing, Any>) -> B,
+            emptyOk: (Unit, State<S, Nothing, Any>, Hints<*>) -> B,
+            emptyError: (ParseError<*, Nothing>, State<S, Nothing, Any>) -> B
+        ): B = trampoline {
+            when (val x = state.stateInput.uncons()) {
+                null -> emptyOk(Unit, state, Hints.empty())
+                else -> {
+                    val us = ErrorItem.Tokens(nonEmptyListOf(x.first))
+                    val ps = setOf(ErrorItem.EndOfInput)
+
+                    emptyError(
+                        ParseError.TrivialError<S, _>(state.stateOffset, us, ps),
+                        State(
+                            state.stateInput,
+                            state.stateContext,
+                            state.stateOffset,
+                            state.statePosState,
+                            state.stateParseErrors
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+
+fun <Token : Any, Tokens : Any, S : Stream<Tokens, Token>> pTakeWhile(
+    ml: String?,
+    test: (Token) -> Boolean
+): Parser<Stream<Tokens, Token>, Tokens> = object : Parser<Stream<Tokens, Token>, Tokens> {
+    override fun <B> unparser(
+        state: State<Stream<Tokens, Token>, Nothing, Any>,
+        trampoline: (() -> B) -> B,
+        consumedOk: (Tokens, State<Stream<Tokens, Token>, Nothing, Any>, Hints<*>) -> B,
+        consumedError: (ParseError<*, Nothing>, State<Stream<Tokens, Token>, Nothing, Any>) -> B,
+        emptyOk: (Tokens, State<Stream<Tokens, Token>, Nothing, Any>, Hints<*>) -> B,
+        emptyError: (ParseError<*, Nothing>, State<Stream<Tokens, Token>, Nothing, Any>) -> B
+    ): B = trampoline {
+        val (ts, nextInput) = state.stateInput.takeWhile(test)
+        val len = state.stateInput.chunkLength(ts)
+        val hs = when (ml) {
+            null -> Hints.empty()
+            else -> Hints(setOf(ErrorItem.Label(ml)))
+        }
+
+        when (state.stateInput.chunkEmpty(ts)) {
+            true -> emptyOk(
+                ts,
+                State(
+                    nextInput,
+                    state.stateContext,
+                    state.stateOffset + len,
+                    state.statePosState,
+                    state.stateParseErrors
+                ),
+                hs
+            )
+
+            false -> consumedOk(
+                ts,
+                State(
+                    nextInput,
+                    state.stateContext,
+                    state.stateOffset + len,
+                    state.statePosState,
+                    state.stateParseErrors
+                ),
+                hs
+            )
+        }
+    }
+}
+
+
+fun <Token : Any, Tokens : Any, S : Stream<Tokens, Token>> pTakeWhile1(
+    ml: String?,
+    test: (Token) -> Boolean
+): Parser<Stream<Tokens, Token>, Tokens> = object : Parser<Stream<Tokens, Token>, Tokens> {
+    override fun <B> unparser(
+        state: State<Stream<Tokens, Token>, Nothing, Any>,
+        trampoline: (() -> B) -> B,
+        consumedOk: (Tokens, State<Stream<Tokens, Token>, Nothing, Any>, Hints<*>) -> B,
+        consumedError: (ParseError<*, Nothing>, State<Stream<Tokens, Token>, Nothing, Any>) -> B,
+        emptyOk: (Tokens, State<Stream<Tokens, Token>, Nothing, Any>, Hints<*>) -> B,
+        emptyError: (ParseError<*, Nothing>, State<Stream<Tokens, Token>, Nothing, Any>) -> B
+    ): B = trampoline {
+        val (ts, nextInput) = state.stateInput.takeWhile(test)
+        val len = state.stateInput.chunkLength(ts)
+        val el = ml?.let { ErrorItem.Label(it) }
+
+        val hs = when (el) {
+            null -> Hints.empty()
+            else -> Hints(setOf(el))
+        }
+
+        when (state.stateInput.chunkEmpty(ts)) {
+            true -> {
+                val us = when (val t = state.stateInput.uncons()) {
+                    null -> ErrorItem.EndOfInput
+                    else -> ErrorItem.Tokens(nonEmptyListOf(t.first))
+                }
+
+                val ps = el?.let(::setOf) ?: emptySet()
+
+                emptyError(
+                    ParseError.TrivialError<S, _>(state.stateOffset, us, ps),
+                    State(
+                        state.stateInput,
+                        state.stateContext,
+                        state.stateOffset,
+                        state.statePosState,
+                        state.stateParseErrors
+                    )
+                )
+            }
+
+            else -> consumedOk(
+                ts,
+                State(
+                    nextInput,
+                    state.stateContext,
+                    state.stateOffset + len,
+                    state.statePosState,
+                    state.stateParseErrors
+                ),
+                hs
+            )
+        }
+    }
+}
+
+fun <Token : Any, Tokens : Any, S : Stream<Tokens, Token>> pTake(
+    ml: String?,
+    count: Int
+): Parser<Stream<Tokens, Token>, Tokens> = object : Parser<Stream<Tokens, Token>, Tokens> {
+    override fun <B> unparser(
+        state: State<Stream<Tokens, Token>, Nothing, Any>,
+        trampoline: (() -> B) -> B,
+        consumedOk: (Tokens, State<Stream<Tokens, Token>, Nothing, Any>, Hints<*>) -> B,
+        consumedError: (ParseError<*, Nothing>, State<Stream<Tokens, Token>, Nothing, Any>) -> B,
+        emptyOk: (Tokens, State<Stream<Tokens, Token>, Nothing, Any>, Hints<*>) -> B,
+        emptyError: (ParseError<*, Nothing>, State<Stream<Tokens, Token>, Nothing, Any>) -> B
+    ): B = trampoline {
+        val n = max(0, count)
+        val el = ml?.let { ErrorItem.Label(it) }
+        val ps = el?.let(::setOf) ?: emptySet()
+
+        when (val taken = state.stateInput.takeN(n)) {
+            null -> emptyError(
+                ParseError.TrivialError<S, _>(state.stateOffset, ErrorItem.EndOfInput, ps), state
+            )
+
+            else -> {
+                val (ts, nextInput) = taken
+                val len = state.stateInput.chunkLength(ts)
+                if (len != count) {
+                    emptyError(
+                        ParseError.TrivialError<S, _>(state.stateOffset + len, ErrorItem.EndOfInput, ps),
+                        State(
+                            state.stateInput,
+                            state.stateContext,
+                            state.stateOffset,
+                            state.statePosState,
+                            state.stateParseErrors
+                        )
+                    )
+                } else {
+                    consumedOk(
+                        ts,
+                        State(
+                            nextInput,
+                            state.stateContext,
+                            state.stateOffset + len,
+                            state.statePosState,
+                            state.stateParseErrors
+                        ),
+                        Hints.empty()
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+fun <S : Stream<*, *>, Error> parseError(error: ParseError<S, Error>) =
+    object : ParserE<S, Error, Nothing> {
+        override fun <B> unparser(
+            state: State<S, Error, Any>,
+            trampoline: (() -> B) -> B,
+            consumedOk: (Nothing, State<S, Error, Any>, Hints<*>) -> B,
+            consumedError: (ParseError<*, Error>, State<S, Error, Any>) -> B,
+            emptyOk: (Nothing, State<S, Error, Any>, Hints<*>) -> B,
+            emptyError: (ParseError<*, Error>, State<S, Error, Any>) -> B
+        ): B = trampoline { emptyError(error, state) }
+    }
+
+
+infix fun <S : Stream<*, *>, Context, Error, Output> ParsekT<S, Context, Error, Output>.label(
+    label: String
+) = object : ParsekT<S, Context, Error, Output> {
+    override fun <B> unparser(
+        state: State<S, Context, Error>,
+        trampoline: (() -> B) -> B,
+        consumedOk: (Output, State<S, Context, Error>, Hints<*>) -> B,
+        consumedError: (ParseError<*, Context>, State<S, Context, Error>) -> B,
+        emptyOk: (Output, State<S, Context, Error>, Hints<*>) -> B,
+        emptyError: (ParseError<*, Context>, State<S, Context, Error>) -> B
+    ): B = trampoline {
+        val el = label.takeIf { it.isNotEmpty() }?.let { ErrorItem.Label(it) }
+
+        val consumedOkL: (Output, State<S, Context, Error>, Hints<*>) -> B = { a, b, c ->
+            when (el) {
+                null -> consumedOk(a, b, refreshHints(c, null))
+                else -> consumedOk(a, b, c)
+            }
+        }
+
+        val emptyOkL: (Output, State<S, Context, Error>, Hints<*>) -> B = { a, b, c ->
+            emptyOk(a, b, refreshHints(c, el))
+        }
+
+        val emptyErrorL: (ParseError<*, Context>, State<S, Context, Error>) -> B = { a, b ->
+            emptyError(
+                when (a) {
+                    is ParseError.TrivialError<*, *> ->
+                        ParseError.TrivialError<S, _>(
+                            a.offset,
+                            a.unexpected,
+                            el?.let(::setOf) ?: emptySet()
+                        )
+
+                    else -> a
+                },
+                b
+            )
+        }
+
+        this@label.unparser(
+            state,
+            trampoline,
+            consumedOkL,
+            consumedError,
+            emptyOkL,
+            emptyErrorL
+        )
+    }
+}
+
+
+fun <S : Stream<*, *>, Error, Context, Output> ParsekT<S, Error, Context, Output>.withRecovery(
+    recoverBy: (ParseError<*, Error>) -> ParsekT<S, Error, Context, Output>
+) = object : ParsekT<S, Error, Context, Output> {
+    override fun <B> unparser(
+        state: State<S, Error, Context>,
+        trampoline: (() -> B) -> B,
+        consumedOk: (Output, State<S, Error, Context>, Hints<*>) -> B,
+        consumedError: (ParseError<*, Error>, State<S, Error, Context>) -> B,
+        emptyOk: (Output, State<S, Error, Context>, Hints<*>) -> B,
+        emptyError: (ParseError<*, Error>, State<S, Error, Context>) -> B
+    ): B = trampoline {
+        fun consumedErrorM(error: ParseError<*, Error>, s: State<S, Error, Context>) =
+            recoverBy(error).unparser(
+                s,
+                trampoline,
+                { a, b, _ -> consumedOk(a, b, Hints.empty()) },
+                { _, _ -> consumedError(error, s) },
+                { a, b, _ -> emptyOk(a, b, Hints.toHints(b.stateOffset, error)) },
+                { _, _ -> consumedError(error, s) }
+            )
+
+        fun emptyErrorM(error: ParseError<*, Error>, s: State<S, Error, Context>) =
+            recoverBy(error).unparser(
+                s,
+                trampoline,
+                { a, b, _ -> consumedOk(a, b, Hints.toHints(b.stateOffset, error)) },
+                { _, _ -> consumedError(error, s) },
+                { a, b, _ -> emptyOk(a, b, Hints.toHints(b.stateOffset, error)) },
+                { _, _ -> consumedError(error, s) }
+            )
+
+        this@withRecovery.unparser(
+            state,
+            trampoline,
+            consumedOk,
+            ::consumedErrorM,
+            emptyOk,
+            ::emptyErrorM
+        )
+    }
+}
+
+fun <S : Stream<*, *>, Error, Context, Output> ParsekT<S, Error, Context, Output>.observing(): ParsekT<S, Error, Context, Either<ParseError<S, Error>, Output>> =
+    object : ParsekT<S, Error, Context, Either<ParseError<S, Error>, Output>> {
+        override fun <B> unparser(
+            state: State<S, Error, Context>,
+            trampoline: (() -> B) -> B,
+            consumedOk: (Either<ParseError<S, Error>, Output>, State<S, Error, Context>, Hints<*>) -> B,
+            consumedError: (ParseError<*, Error>, State<S, Error, Context>) -> B,
+            emptyOk: (Either<ParseError<S, Error>, Output>, State<S, Error, Context>, Hints<*>) -> B,
+            emptyError: (ParseError<*, Error>, State<S, Error, Context>) -> B
+        ): B = trampoline {
+            fun consumedErrC(error: ParseError<S, Error>, s: State<S, Error, Context>) =
+                consumedOk(Either.Left(error), s, Hints.empty())
+
+            fun emptyErrorC(error: ParseError<S, Error>, s: State<S, Error, Context>) =
+                emptyOk(Either.Left(error), s, Hints.toHints(s.stateOffset, error))
+
+            @Suppress("unchecked_cast")
+            this@observing.unparser(
+                state,
+                trampoline,
+                { a, b, c -> consumedOk(Either.Right(a), b, c) },
+                ::consumedErrC as (ParseError<*, Error>, State<S, Error, Context>) -> B,
+                { a, b, c -> emptyOk(Either.Right(a), b, c) },
+                ::emptyErrorC as (ParseError<*, Error>, State<S, Error, Context>) -> B
+            )
+        }
+    }
+
 
 fun <S : Any> satisfy(test: (Char) -> Boolean): Parser<Stream<S, Char>, Char> =
     token(
         test = { if (test(it)) it else null },
-        errorItems = setOf(ErrorItem.Tokens(nonEmptyListOf('a')))
+        errorItems = emptySet()
     )
 
 fun <S : Any> char(char: Char): Parser<Stream<S, Char>, Char> =

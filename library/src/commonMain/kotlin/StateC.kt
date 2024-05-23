@@ -1,3 +1,6 @@
+import util.Ordering
+import util.compare
+
 data class ContextState<out Context>(val context: Context)
 
 
@@ -38,6 +41,9 @@ data class State<S : Stream<*, *>, E, out C>(
     }
 }
 
-internal infix fun <S : Stream<*, *>, E, C> State<S, E, C>.longestMatch(other: State<S, E, C>): State<S, E, C> {
-    TODO("Not yet implemented")
-}
+internal infix fun <S : Stream<*, *>, E, C> State<S, E, C>.longestMatch(other: State<S, E, C>): State<S, E, C> =
+    when (this.stateOffset compare other.stateOffset) {
+        Ordering.LT -> other
+        Ordering.EQ -> other
+        Ordering.GT -> this
+    }

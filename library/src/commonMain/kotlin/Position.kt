@@ -22,7 +22,7 @@ data class SourcePos(
 
 
 @JvmInline
-value class Pos(val pos: Int) {
+value class Pos(val pos: Int) : Comparable<Pos> {
     init {
         require(pos >= 0) { "Position must be > 0" }
     }
@@ -31,6 +31,8 @@ value class Pos(val pos: Int) {
         val Pos1 = Pos(1)
         val DefaultTabWidth = Pos(8)
     }
+
+    override fun compareTo(other: Pos): Int = this.pos compareTo other.pos
 }
 
 
