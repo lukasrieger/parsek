@@ -50,13 +50,9 @@ private value class StringStreamImpl(val input: String) : StringStream {
         input.take(n) to StringStreamImpl(input.drop(n))
     }
 
-    override fun chunkEmpty(s: String): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun chunkEmpty(s: String): Boolean = s.isEmpty()
 
-    override fun chunkLength(s: String): Int {
-        TODO("Not yet implemented")
-    }
+    override fun chunkLength(s: String): Int = s.length
 
     override fun takeWhile(test: (Char) -> Boolean): Pair<String, Stream<String, Char>> =
         input.takeWhile(test).let { it to StringStreamImpl(input.drop(it.length)) }
@@ -242,15 +238,10 @@ value class ListStreamImpl<T : Any>(private val input: List<T>) : Stream<List<T>
         input.take(n) to ListStreamImpl(input.drop(n))
     }
 
-    override fun chunkEmpty(s: List<T>): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun chunkEmpty(s: List<T>): Boolean = s.isEmpty()
 
-    override fun chunkLength(s: List<T>): Int {
-        TODO("Not yet implemented")
-    }
+    override fun chunkLength(s: List<T>): Int = s.size
 
-    override fun takeWhile(test: (T) -> Boolean): Pair<List<T>, Stream<List<T>, T>> {
-        TODO("Not yet implemented")
-    }
+    override fun takeWhile(test: (T) -> Boolean): Pair<List<T>, Stream<List<T>, T>> =
+        input.takeWhile(test).let { it to ListStreamImpl(input.drop(it.size)) }
 }

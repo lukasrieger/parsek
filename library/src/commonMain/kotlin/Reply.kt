@@ -19,7 +19,7 @@ enum class Consumption {
 }
 
 
-data class Hints<T>(val hints: Set<ErrorItem<T>>) {
+data class Hints<out T>(val hints: Set<ErrorItem<T>>) {
     companion object {
         fun empty(): Hints<Nothing> = Hints(hints = emptySet())
 
@@ -32,6 +32,8 @@ data class Hints<T>(val hints: Set<ErrorItem<T>>) {
             else -> empty()
         }
     }
+
+    operator fun plus(other: Hints<@UnsafeVariance T>): Hints<T> = Hints(hints + other.hints)
 }
 
 

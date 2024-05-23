@@ -725,7 +725,7 @@ internal fun <S : Stream<*, *>, Error, Context, Output1> ParsekT<S, Error, Conte
                     trampoline { consumedError(a + err, ms longestMatch b) }
                 },
                 { a, b, c ->
-                    trampoline { emptyOk(a, b, c) } // TODO : Merge hints
+                    trampoline { emptyOk(a, b, Hints.toHints(b.stateOffset, err) + c) }
                 },
                 { a, b ->
                     trampoline { emptyError(a + err, ms longestMatch b) }
