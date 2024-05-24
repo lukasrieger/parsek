@@ -868,20 +868,17 @@ fun <S : Stream<*, *>, Error, Output> ParsekT<S, Any, Error, Output>.runParser(
     input: S,
     name: FilePath = FilePath.empty()
 ): Either<ParseErrorBundle<S, Error>, Output> {
+    val reply = runParsekT(input, name)
+
     fun toBundle(errors: NonEmptyList<ParseError<Error>>) =
         ParseErrorBundle(
             bundleErrors = errors.sortedBy { it.offset }.toNonEmptyListOrNull()!!,
             bundlePosState = reply.state.statePosState
         )
 
-    val reply = runParsekT(input, name)
-
     return when (reply.result) {
         is Result.Error -> Either.Left(toBundle(nonEmptyListOf(reply.result.error)))
         is Result.Ok -> Either.Right(reply.result.result)
     }
 }
-
-
-
 
