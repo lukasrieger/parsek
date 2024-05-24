@@ -68,8 +68,7 @@ fun <Token : Any, Tokens : Any> reachOffsetH(
     fun addPrefix(xs: String) = if (sameLine) pStateLinePrefix + xs else xs
     val expandTabC = ::expandTab.curried()
 
-    val reduce =
-        expandTabC(pStateTabWidth) `∘`
+    val reduce = expandTabC(pStateTabWidth) `∘`
                 ::addPrefix `∘` f `∘`
                 fromTokens `∘` PairT<Token, Tokens>::first
 
