@@ -48,6 +48,6 @@ fun tRec2() = doM {
 
 fun main() {
     val result =
-        apTest2.runParser(Stream.of("abc Hello World!"))
+        ttt65.runParser(Stream.of("abc Hello World!"))
     println(result)
 }

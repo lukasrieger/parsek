@@ -896,10 +896,7 @@ fun <S : Stream<*, *>, Context, Error, Output> ParsekT<S, Context, Error, Output
     ): Step<() -> Trampoline<S, Context, Error, Output>, Reply<S, Context, Error, Output>> =
         when (val step = n()) {
             is Trampoline.Done -> Step.Done(step.done)
-            is Trampoline.More -> {
-                println("Trampolinierung!")
-                go(step.run)
-            }
+            is Trampoline.More -> go(step.run)
         }
 
     return tailRec(::go) {
