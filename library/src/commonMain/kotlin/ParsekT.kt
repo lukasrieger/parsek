@@ -3,6 +3,7 @@ import Trampoline.Companion.more
 import arrow.core.*
 import error.*
 import stream.Stream
+import kotlin.jvm.JvmName
 import kotlin.math.max
 
 
@@ -781,25 +782,29 @@ internal fun <S : Stream<*, *>, Output> zero(): Parser<S, Output> =
         ): B = emptyError(ParseError.TrivialError<Any>(state.stateOffset, null, emptySet()), state)
     }
 
-
+@JvmName("timesPair")
 operator fun <S : Stream<*, *>, Context, Error, A, B1> ParsekT<S, Context, Error, A>.times(
     b: ParsekT<S, Context, Error, B1>
 ): ParsekT<S, Context, Error, Pair<A, B1>> = ap(fp = ap(fp = pure { a: A -> { b: B1 ->  Pair(a, b) } }, this), b)
 
+@JvmName("timesTriple")
 operator fun <S : Stream<*, *>, Context, Error, A, B1, C> ParsekT<S, Context, Error, Pair<A, B1>>.times(
     b: ParsekT<S, Context, Error, C>
 ): ParsekT<S, Context, Error, Triple<A, B1, C>> =
     ap(fp = ap(fp = pure { a: Pair<A, B1> -> { b: C -> a + b } }, this), b)
 
+@JvmName("timesTuple4")
 operator fun <S : Stream<*, *>, Context, Error, A, B1, C, D> ParsekT<S, Context, Error, Triple<A, B1, C>>.times(
     b: ParsekT<S, Context, Error, D>
 ): ParsekT<S, Context, Error, Tuple4<A, B1, C, D>> =
     ap(fp = ap(fp = pure { a: Triple<A, B1, C> -> { b: D -> a + b } }, this), b)
 
+@JvmName("timesTuple5")
 operator fun <S : Stream<*, *>, Context, Error, A, B1, C, D, E> ParsekT<S, Context, Error, Tuple4<A, B1, C, D>>.times(
     b: ParsekT<S, Context, Error, E>
 ): ParsekT<S, Context, Error, Tuple5<A, B1, C, D, E>> =
     ap(fp = ap(fp = pure { a: Tuple4<A, B1, C, D> -> { b: E -> a + b } }, this), b)
+
 
 internal fun <S : Stream<*, *>, Context, Error, A, B1> ap(
     fp: ParsekT<S, Context, Error, (A) -> B1>,
@@ -891,7 +896,10 @@ fun <S : Stream<*, *>, Context, Error, Output> ParsekT<S, Context, Error, Output
     ): Step<() -> Trampoline<S, Context, Error, Output>, Reply<S, Context, Error, Output>> =
         when (val step = n()) {
             is Trampoline.Done -> Step.Done(step.done)
-            is Trampoline.More -> go(step.run)
+            is Trampoline.More -> {
+                println("Trampolinierung!")
+                go(step.run)
+            }
         }
 
     return tailRec(::go) {

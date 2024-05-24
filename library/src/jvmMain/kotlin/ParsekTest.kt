@@ -25,7 +25,7 @@ val orTest: Parser<StringStream, String> = pure<StringStream, Any, Nothing, _>("
 val apTest = consumeA * orTest
 
 val apTest2 =
-    (apTest * consumeA * consumeA * consumeA) map { it.first }
+    (consumeA) map { it }
 
 val ttt65: Parser<StringStream, Unit> = doM {
     !char<String>('a')
