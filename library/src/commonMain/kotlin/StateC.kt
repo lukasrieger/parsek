@@ -1,10 +1,12 @@
+import error.ParseError
+import stream.Stream
 import util.Ordering
 import util.compare
 
 data class ContextState<out Context>(val context: Context)
 
 
-data class State<S : Stream<*, *>, E, out C>(
+data class State<S : Stream<*, *>, out C, E>(
     /**
      * The rest input to process
      */
@@ -27,11 +29,11 @@ data class State<S : Stream<*, *>, E, out C>(
 
 ) {
     companion object {
-        fun <S : Stream<*, *>, Error, Context> initial(
+        fun <S : Stream<*, *>, Context, Error> initial(
             name: FilePath,
             input: S,
             context: Context
-        ): State<S, Error, Context> = State(
+        ): State<S, Context, Error> = State(
             stateInput = input,
             stateContext = ContextState(context),
             stateOffset = 0,
@@ -41,7 +43,7 @@ data class State<S : Stream<*, *>, E, out C>(
     }
 }
 
-internal infix fun <S : Stream<*, *>, E, C> State<S, E, C>.longestMatch(other: State<S, E, C>): State<S, E, C> =
+internal infix fun <S : Stream<*, *>, C, E> State<S, C, E>.longestMatch(other: State<S, C, E>): State<S, C, E> =
     when (this.stateOffset compare other.stateOffset) {
         is Ordering.LT -> other
         is Ordering.EQ -> other

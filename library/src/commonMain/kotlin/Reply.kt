@@ -1,5 +1,9 @@
-data class Reply<S : Stream<*, *>, E, C, A>(
-    val state: State<S, E, C>,
+import error.ErrorItem
+import error.ParseError
+import stream.Stream
+
+data class Reply<S : Stream<*, *>, C, E, A>(
+    val state: State<S, C, E>,
     val consumption: Consumption,
     val result: Result<E, A>
 )
@@ -29,6 +33,7 @@ data class Hints<out T>(val hints: Set<ErrorItem<T>>) {
             } else {
                 empty()
             }
+
             else -> empty()
         }
     }

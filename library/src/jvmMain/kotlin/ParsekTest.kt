@@ -1,6 +1,9 @@
+import stream.Stream
+import stream.instances.StringStream
+
 data class St(val callCount: Int)
 
-val t1: ParserE<StringStream, Throwable, String> = string("Hello!")
+val t1: ParserE<StringStream, Throwable, String> = pure<StringStream, _>("Hello!")
 
 val tt3 = t1 or t1
 
@@ -17,13 +20,13 @@ fun t4(): ParsekT<StringStream, Any, Any, String> = doM {
 
 val consumeA = char<String>('a') or char('b')
 
-val orTest = string("ab") or string("ac")
+val orTest = pure<StringStream, _>("ab") or pure("ac")
 
 val ttt65: Parser<StringStream, Unit> = doM {
     !char<String>('a')
     !char<String>('b')
     !char<String>('c')
-    !(char<String>('a') or char('b'))
+    !(char<String>('b') or char('a') or eof())
 }
 
 fun tRec1(): ParserE<StringStream, Throwable, String> = doM {

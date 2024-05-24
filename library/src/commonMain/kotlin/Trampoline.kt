@@ -1,21 +1,23 @@
-internal sealed interface Trampoline<S : Stream<*, *>, out Error, out Context, out Output> {
-    data class More<S : Stream<*, *>, Error, Context, Output>(
-        val run: () -> Trampoline<S, Error, Context, Output>
-    ) : Trampoline<S, Error, Context, Output>
+import stream.Stream
 
-    data class Done<S : Stream<*, *>, Error, Context, Output>(
-        val done: Reply<S, Error, Context, Output>
-    ) : Trampoline<S, Error, Context, Output>
+internal sealed interface Trampoline<S : Stream<*, *>, out Context, out Error, out Output> {
+    data class More<S : Stream<*, *>, Context, Error, Output>(
+        val run: () -> Trampoline<S, Context, Error, Output>
+    ) : Trampoline<S, Context, Error, Output>
+
+    data class Done<S : Stream<*, *>, Context, Error, Output>(
+        val done: Reply<S, Context, Error, Output>
+    ) : Trampoline<S, Context, Error, Output>
 
 
     companion object {
-        internal fun <S : Stream<*, *>, Error, Context, Output> done(
-            reply: Reply<S, Error, Context, Output>
-        ): Trampoline<S, Error, Context, Output> = Done(reply)
+        internal fun <S : Stream<*, *>, Context, Error, Output> done(
+            reply: Reply<S, Context, Error, Output>
+        ): Trampoline<S, Context, Error, Output> = Done(reply)
 
-        internal fun <S : Stream<*, *>, Error, Context, Output> more(
-            run: () -> Trampoline<S, Error, Context, Output>
-        ): Trampoline<S, Error, Context, Output> = More(run)
+        internal fun <S : Stream<*, *>, Context, Error, Output> more(
+            run: () -> Trampoline<S, Context, Error, Output>
+        ): Trampoline<S, Context, Error, Output> = More(run)
     }
 }
 
