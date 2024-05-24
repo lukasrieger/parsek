@@ -21,13 +21,8 @@ data class SourcePos(
     }
 
     fun pretty(): String {
-        val lc = sourceLine.pos.toString() + ":" + sourceColumn.pos.toString()
-
-        return if (sourceName.isEmpty()) {
-            lc
-        } else {
-            "$sourceName:$lc"
-        }
+        val lineColoumnPretty = sourceLine.pos.toString() + ":" + sourceColumn.pos.toString()
+        return if (sourceName.isEmpty()) lineColoumnPretty else "$sourceName:$lineColoumnPretty" 
     }
 }
 
