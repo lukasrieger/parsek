@@ -41,12 +41,6 @@ kotlin {
                 implementation(libs.kotlin.test)
             }
         }
-
-        val jvmMain by getting {
-            dependencies {
-                implementation(libs.inikio.core)
-            }
-        }
     }
 }
 
