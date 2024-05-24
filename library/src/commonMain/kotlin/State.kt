@@ -6,11 +6,11 @@ import util.compare
 data class ContextState<out Context>(val context: Context)
 
 
-data class State<S : Stream<*, *>, out C, E>(
+data class State<in S : Stream<*, *>, out C, out E>(
     /**
      * The rest input to process
      */
-    val stateInput: S,
+    val stateInput: @UnsafeVariance S,
 
     val stateContext: ContextState<C>,
     /**
@@ -20,12 +20,12 @@ data class State<S : Stream<*, *>, out C, E>(
     /**
      * State that is used for line/column calculation
      */
-    val statePosState: PosState<S>,
+    val statePosState: PosState<@UnsafeVariance S>,
     /**
      * Collection of "delayed" [ParseError]'s in reverse order.
      * This means that the last error is the first element of the list.
      */
-    val stateParseErrors: List<ParseError<S, E>>
+    val stateParseErrors: List<ParseError<E>>
 
 ) {
     companion object {

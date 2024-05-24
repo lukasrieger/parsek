@@ -9,7 +9,7 @@ sealed interface ErrorFancy<out E> : Comparable<ErrorFancy<*>> {
 
     data class ErrorIndentation(val error: Ordering<Pos, Pos>) : ErrorFancy<Nothing>
 
-    data class ErrorCustom<E>(val error: E) : ErrorFancy<E>
+    data class ErrorCustom<out E>(val error: E) : ErrorFancy<E>
 
     override fun compareTo(other: ErrorFancy<*>): Int = 0
 }

@@ -8,14 +8,14 @@ import stream.Stream
 import kotlin.math.max
 
 data class ParseErrorBundle<S : Stream<*, *>, E>(
-    val bundleErrors: NonEmptyList<ParseError<S, E>>,
+    val bundleErrors: NonEmptyList<ParseError<E>>,
     val bundlePosState: PosState<S>
 ) {
     override fun toString(): String = pretty()
 }
 
 fun <S : Stream<*, *>> ParseErrorBundle<S, *>.pretty(): String {
-    fun f(posState: PosState<out Stream<*, *>>, error: ParseError<*, *>): String {
+    fun f(posState: PosState<out Stream<*, *>>, error: ParseError<*>): String {
         val (errorLoc, pst) =
             posState.pStateInput.reachOffset(error.offset, posState)
 
@@ -30,11 +30,11 @@ fun <S : Stream<*, *>> ParseErrorBundle<S, *>.pretty(): String {
                 val padding = " ".repeat(lineNumber.length + 1)
 
                 val errorLen = when (error) {
-                    is FancyError -> error.errors.fold(1) { a, b ->
+                    is FancyError<*> -> error.errors.fold(1) { a, b ->
                         max(a, b.errorFancyLength)
                     }
 
-                    is TrivialError<*, *> -> if (error.unexpected == null) {
+                    is TrivialError<*> -> if (error.unexpected == null) {
                         1
                     } else {
                         error.unexpected.errorItemLength

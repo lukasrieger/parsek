@@ -6,7 +6,7 @@ sealed interface ErrorItem<out T> : Comparable<ErrorItem<*>> {
 
     override fun compareTo(other: ErrorItem<*>): Int = 0
 
-    data class Tokens<T>(
+    data class Tokens<out T>(
         val tokens: NonEmptyList<T>
     ) : ErrorItem<T>
 
