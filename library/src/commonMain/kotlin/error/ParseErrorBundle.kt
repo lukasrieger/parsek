@@ -5,6 +5,7 @@ import arrow.core.NonEmptyList
 import error.ParseError.FancyError
 import error.ParseError.TrivialError
 import stream.Stream
+import util.*
 import kotlin.math.max
 
 data class ParseErrorBundle<S : Stream<*, *>, E>(
@@ -50,15 +51,15 @@ fun <S : Stream<*, *>> ParseErrorBundle<S, *>.pretty(): String {
 
                 buildString {
                     append(padding)
-                    append("|\n")
-                    append(lineNumber)
-                    append(" | ")
+                    append("|\n".blue())
+                    append(lineNumber.blue())
+                    append(" | ".blue())
                     append(errorLoc)
                     append("\n")
                     append(padding)
-                    append("| ")
+                    append("| ".blue())
                     append(rightPadding)
-                    append(pointer)
+                    append(pointer.red())
                     append("\n")
                 }
             }
@@ -66,10 +67,10 @@ fun <S : Stream<*, *>> ParseErrorBundle<S, *>.pretty(): String {
 
         return buildString {
             append("\n")
-            append(errorPos.pretty())
-            append(":\n")
+            append(errorPos.pretty().blue())
+            append(":\n".blue())
             append(offendingLine)
-            append(error.textPretty())
+            append(error.textPretty().red())
         }
     }
 

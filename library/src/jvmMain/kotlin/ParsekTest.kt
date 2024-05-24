@@ -1,3 +1,4 @@
+import arrow.core.Either
 import stream.Stream
 import stream.instances.StringStream
 
@@ -46,8 +47,9 @@ fun tRec2() = doM {
 }
 
 
-fun main() {
-    val result =
-        ttt65.runParser(Stream.of("abc Hello World!"))
-    println(result)
-}
+fun main() =
+    when(val result = consumeA.runParser(Stream.of("cca Hello World!"))) {
+        is Either.Left -> println(result.value)
+        is Either.Right -> println(result.value)
+    }
+
