@@ -8,6 +8,10 @@ val t1: ParserE<StringStream, Throwable, String> = pure("Hello!")
 
 val tt3 = t1 or t1
 
+val ttt6 = pure<StringStream, Int, Nothing, Int>(0)
+
+val xhguhr =  ttt6 * tt3
+
 var i = 0
 
 val t3: Parser<StringStream, String> = doM { "1" }

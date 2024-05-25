@@ -1,6 +1,6 @@
 import stream.Stream
 
-internal sealed interface Trampoline<S : Stream<*, *>, out Context, out Error, out Output> {
+sealed interface Trampoline<in S : Stream<*, *>, in Context, out Error, out Output> {
     data class More<S : Stream<*, *>, Context, Error, Output>(
         val run: () -> Trampoline<S, Context, Error, Output>
     ) : Trampoline<S, Context, Error, Output>

@@ -7,6 +7,7 @@ import kotlin.jvm.JvmName
 import kotlin.math.max
 
 
+
 interface ParsekT<in S : Stream<*, *>, in Context, out Error, out Output> {
     operator fun <B> invoke(
         state: State<@UnsafeVariance S, Context, @UnsafeVariance Error>,
@@ -915,13 +916,13 @@ inline fun <S : Stream<*, *>, Context, Error, A, B1> ap(
 }
 
 
-internal typealias InitRec<Stream, Context, Error, Output> =
+typealias InitRec<Stream, Context, Error, Output> =
             () -> Trampoline<Stream, Context, Error, Output>
 
-internal typealias StepRec<Stream, Context, Error, Output> =
+typealias StepRec<Stream, Context, Error, Output> =
         Step<InitRec<Stream, Context, Error, Output>, Reply<Stream, Context, Error, Output>>
 
-internal typealias RunRec<Stream, Context, Error, Output> =
+typealias RunRec<Stream, Context, Error, Output> =
             (InitRec<Stream, Context, Error, Output>) -> StepRec<Stream, Context, Error, Output>
 
 
