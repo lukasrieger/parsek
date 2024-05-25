@@ -25,6 +25,8 @@ value class StringStream(private val input: String) : Stream<String, Char> {
         input.take(n) to StringStream(input.drop(n))
     }
 
+    override fun chunkToTokens(s: String): List<Char> = s.toList()
+
     override fun chunkEmpty(s: String): Boolean = s.isEmpty()
 
     override fun chunkLength(s: String): Int = s.length

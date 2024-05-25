@@ -44,3 +44,16 @@ fun <Error, Context : Any, Output> doM(
 
     return scope.getParser()
 }
+
+fun <S : Stream<*, *>, Error, Context, Output> `do`(
+    f: suspend ParsekScope<S, Context, Error, Output>.() -> Output
+): ParsekT<S, Context, Error, Output> {
+    val scope = ParsekScope<S, Context, Error, Output>()
+    val wrapReturn: suspend ParsekScope<S, Context, Error, Output>.() -> ParsekT<S, Context, Error, Output> =
+        {
+            pure(f())
+        }
+    wrapReturn.startCoroutine(scope, scope)
+
+    return scope.getParser()
+}

@@ -26,8 +26,14 @@ internal val ErrorItem<*>.errorItemLength: Int
 internal fun ErrorItem<*>.pretty(): String = when (this) {
     is ErrorItem.EndOfInput -> "end of input"
     is ErrorItem.Label -> label
-    is ErrorItem.Tokens -> tokens.joinToString("") { it.prettyChar() ?: "'$it'" }
+    is ErrorItem.Tokens -> prettyTokens()
 }
+
+private fun <T> ErrorItem.Tokens<T>.prettyTokens(): String =
+    tokens
+        .singleOrNull()
+        ?.let { it.prettyChar() ?: "'$it'" } ?:
+        tokens.joinToString(separator = "", prefix = "\"", postfix = "\"", limit = 50)
 
 private fun Any?.prettyChar() = when (this) {
     ' ' -> "space"

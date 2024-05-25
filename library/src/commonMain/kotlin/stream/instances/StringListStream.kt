@@ -18,6 +18,8 @@ value class CharListStream(private val input: List<Char>) : Stream<List<Char>, C
         unpack().take(n) to of(unpack().drop(n))
     }
 
+    override fun chunkToTokens(s: List<Char>): List<Char> = s
+
     override fun chunkEmpty(s: List<Char>): Boolean = s.isEmpty()
 
     override fun chunkLength(s: List<Char>): Int = s.size
@@ -28,6 +30,7 @@ value class CharListStream(private val input: List<Char>) : Stream<List<Char>, C
     companion object {
         fun <T : Any> of(ls: List<T>): ListStream<T> = object : ListStream<T> {
             override fun unpack(): List<T> = ls
+            override fun chunkToTokens(s: List<T>): List<T> = s
         }
     }
 }

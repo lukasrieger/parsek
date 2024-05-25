@@ -20,6 +20,8 @@ interface Stream<S, X> where S : Any, X : Any {
 
     fun chunkEmpty(s: S): Boolean
 
+    fun chunkToTokens(s: S): List<X>
+
     fun reachOffset(offset: Int, posState: PosState<*>): Pair<String?, PosState<*>> =
         null to reachOffsetNoLine(offset, posState)
 

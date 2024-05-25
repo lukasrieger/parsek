@@ -47,9 +47,47 @@ fun tRec2() = doM {
 }
 
 
-fun main() =
-    when(val result = consumeA.runParser(Stream.of("cca Hello World!"))) {
+val comma = char(',')
+val colon = char(':')
+
+val openingBrace = char('{')
+val closingBrace = char('}')
+
+val openingBracket = char('[')
+val closingBracket = char(']')
+
+val `null` = string("null")
+val `true` = string("true")
+val `false` = string("false")
+
+val jsonNull = `null` map { null }
+val jsonBool = `true`.map { true } or (`false`.map { false })
+val jsonString =
+    (-char<String>('"') * anyChar<String>().manyTill(char('"'))) map { str -> str.joinToString("") }
+
+val jsonNumber = double()
+val jsonPrimitiveValue = jsonNull or jsonBool or jsonString or (jsonNumber)
+
+val seqTest =
+    jsonNull * space1() * jsonBool * space1() * jsonNumber * space1() * jsonString * eof()
+
+
+fun main() {
+    val result =
+        seqTest.runParser(
+            Stream.of("""
+                |null 
+                |false 
+                |1.53754 <boom!>
+                |"Hello World!"
+                |""".trimMargin()
+            )
+        )
+
+    when(result) {
         is Either.Left -> println(result.value)
         is Either.Right -> println(result.value)
     }
+}
+
 

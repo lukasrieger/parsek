@@ -25,6 +25,7 @@ interface ListStream<T : Any> : Stream<List<T>, T> {
     companion object {
         operator fun <T : Any> invoke(ls: List<T>): ListStream<T> = object : ListStream<T> {
             override fun unpack(): List<T> = ls
+            override fun chunkToTokens(s: List<T>): List<T> = s
         }
     }
 }

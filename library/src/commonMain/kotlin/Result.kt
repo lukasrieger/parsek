@@ -25,5 +25,5 @@ data class Hints(val hints: Set<ErrorItem<*>>) {
     }
 }
 
-internal operator fun Hints.plus(other: Hints): Hints =
+operator fun Hints.plus(other: Hints): Hints =
     Hints(hints + other.hints)

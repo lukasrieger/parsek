@@ -43,7 +43,7 @@ data class State<in S : Stream<*, *>, out C, out E>(
     }
 }
 
-internal infix fun <S : Stream<*, *>, C, E> State<S, C, E>.longestMatch(other: State<S, C, E>): State<S, C, E> =
+infix fun <S : Stream<*, *>, C, E> State<S, C, E>.longestMatch(other: State<S, C, E>): State<S, C, E> =
     when (this.stateOffset compare other.stateOffset) {
         is Ordering.LT -> other
         is Ordering.EQ -> other

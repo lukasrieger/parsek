@@ -44,7 +44,7 @@ sealed interface ParseError<out E> {
 
 }
 
-internal operator fun <E> ParseError<E>.plus(other: ParseError<E>): ParseError<E> = merge(other)
+operator fun <E> ParseError<E>.plus(other: ParseError<E>): ParseError<E> = merge(other)
 
 
 infix fun <E> ParseError<E>.merge(other: ParseError<E>): ParseError<E> {
