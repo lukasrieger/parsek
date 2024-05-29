@@ -21,7 +21,7 @@ sealed interface Trampoline<in S : Stream<*, *>, in Context, out Error, out Outp
     }
 }
 
-internal sealed interface Step<out Loop, out Result> {
+sealed interface Step<out Loop, out Result> {
     data class Done<Result>(val result: Result) : Step<Nothing, Result>
     data class Loop<Loop>(val loop: Loop) : Step<Loop, Nothing>
 }

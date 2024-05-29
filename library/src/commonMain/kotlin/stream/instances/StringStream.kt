@@ -32,7 +32,11 @@ value class StringStream(private val input: String) : Stream<String, Char> {
     override fun chunkLength(s: String): Int = s.length
 
     override fun takeWhile(test: (Char) -> Boolean): Pair<String, Stream<String, Char>> =
-        input.takeWhile(test).let { it to StringStream(input.drop(it.length)) }
+        input.takeWhile(test).let {
+            val y = input.drop(it.length)
+            val x = it to StringStream(y)
+            x
+        }
 
 
     override fun reachOffset(

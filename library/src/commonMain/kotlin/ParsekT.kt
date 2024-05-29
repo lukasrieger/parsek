@@ -5,7 +5,7 @@ import error.*
 import stream.Stream
 import kotlin.jvm.JvmName
 import kotlin.math.max
-
+import kotlin.reflect.KProperty0
 
 
 interface ParsekT<in S : Stream<*, *>, in Context, out Error, out Output> {
@@ -224,9 +224,14 @@ inline fun <Tokens : Any, Token : Any, Context, Error> tokens(
             emptyOk: (Tokens, State<Stream<Tokens, Token>, Context, Error>, Hints) -> B,
             emptyError: (ParseError<Error>, State<Stream<Tokens, Token>, Context, Error>) -> B
         ): B {
-            val unexpected: (pos: Int, errorItem: ErrorItem<Token>) -> ParseError.TrivialError<Token> = { pos, errorItem ->
-                ParseError.TrivialError(pos, errorItem, setOf(ErrorItem.Tokens(state.stateInput.chunkToTokens(tokens).toNonEmptyListOrNull()!!)))
-            }
+            val unexpected: (pos: Int, errorItem: ErrorItem<Token>) -> ParseError.TrivialError<Token> =
+                { pos, errorItem ->
+                    ParseError.TrivialError(
+                        pos,
+                        errorItem,
+                        setOf(ErrorItem.Tokens(state.stateInput.chunkToTokens(tokens).toNonEmptyListOrNull()!!))
+                    )
+                }
 
             val tokenLength = state.stateInput.chunkLength(tokens)
             return when (val taken = state.stateInput.takeN(tokenLength)) {
@@ -238,7 +243,6 @@ inline fun <Tokens : Any, Token : Any, Context, Error> tokens(
 
                 else -> {
                     val (tts, tail) = taken
-
                     if (test(tokens, tts)) {
                         val nextState =
                             State(
@@ -257,7 +261,10 @@ inline fun <Tokens : Any, Token : Any, Context, Error> tokens(
 
                     } else {
                         emptyError(
-                            unexpected(state.stateOffset, ErrorItem.Tokens(state.stateInput.chunkToTokens(tts).toNonEmptyListOrNull()!!)),
+                            unexpected(
+                                state.stateOffset,
+                                ErrorItem.Tokens(state.stateInput.chunkToTokens(tts).toNonEmptyListOrNull()!!)
+                            ),
                             State(
                                 state.stateInput,
                                 state.stateContext,
@@ -318,7 +325,7 @@ inline fun <Token : Any, Tokens : Any> pTakeWhile(
     ): B = trampoline {
         val (ts, nextInput) = state.stateInput.takeWhile(test)
         val len = state.stateInput.chunkLength(ts)
-        val hs = Hints(setOfNotNull(ml?.let{ ErrorItem.Label(it) }))
+        val hs = Hints(setOfNotNull(ml?.let { ErrorItem.Label(it) }))
 
         when (state.stateInput.chunkEmpty(ts)) {
             true -> emptyOk(
@@ -593,13 +600,46 @@ inline fun <S : Stream<*, *>, Error, Context, Output> ParsekT<S, Context, Error,
 fun <S : Stream<*, *>, Error, Context, Output, End> ParsekT<S, Context, Error, Output>.manyTill(
     end: ParsekT<S, Context, Error, End>
 ): ParsekT<S, Context, Error, List<Output>> {
-    fun go(f: List<Output>): ParsekT<S, Context, Error, List<Output>> = `do` {
-        val done = !end.optional()
-        when (done) {
-            null -> !go(f + !this@manyTill)
-            else -> f
+//    fun go(f: List<Output>): ParsekT<S, Context, Error, List<Output>> = `do` {
+//        val done = !end.optional()
+//        when (done) {
+//            null -> !go(f + !this@manyTill)
+//            else -> f
+//        }
+//    }
+
+    fun go(f: List<Output>): ParsekT<S, Context, Error, List<Output>> =
+        end.optional().bind { done ->
+            when (done) {
+                null -> this@manyTill.bind { res -> go(f + res) }
+                else -> pure(f)
+            }
         }
-    }
+
+    return go(emptyList())
+}
+
+fun <S : Stream<*, *>, Error, Context, Output> ParsekT<S, Context, Error, Output>.many(): ParsekT<S, Context, Error, List<Output>> {
+//    fun go(f: List<Output>): ParsekT<S, Context, Error, List<Output>> = `do` {
+//        val done = !this@many.optional()
+//        when (done) {
+//            null -> !go(f + !this@many)
+//            else -> f
+//        }
+//    }
+
+    fun go(f: List<Output>): ParsekT<S, Context, Error, List<Output>> =
+        this@many.optional().bind { done ->
+            when (done) {
+                null -> {
+                    pure(f)
+                }
+                else -> {
+
+                    go(f + done)
+                }
+            }
+        }
 
     return go(emptyList())
 }
@@ -624,10 +664,14 @@ inline fun char(char: Char): Parser<Stream<String, Char>, Char> =
 inline fun space1(): Parser<Stream<String, Char>, Unit> =
     -pTakeWhile1<Char, String>("white space", Char::isWhitespace)
 
+inline fun space(): Parser<Stream<String, Char>, Unit> =
+    -pTakeWhile<Char, String>("zero or more white space", Char::isWhitespace)
+
 inline fun string(str: String): Parser<Stream<String, Char>, String> =
     tokens(String::equals, str)
 
 inline fun double(): Parser<Stream<String, Char>, Double> =
+    -(char('-').optional()) *
     (pTakeWhile1<Char, String>(
         "digit",
         Char::isDigit
@@ -638,8 +682,10 @@ inline fun double(): Parser<Stream<String, Char>, Double> =
             pTakeWhile1<Char, String>(
                 "digit",
                 Char::isDigit
-            ).map { it.toDouble() }
+            ).map { it.toDouble() }.attempt()
 
+fun <Output> Parser<Stream<String, Char>, Output>.lexeme(): Parser<Stream<String, Char>, Output> =
+    -(space().optional()) * this@lexeme * -(space().optional())
 
 
 inline fun <S : Stream<*, *>, Context> getContext(): ParserC<S, Context, Context> =
@@ -654,6 +700,28 @@ inline fun <S : Stream<*, *>, Context> getContext(): ParserC<S, Context, Context
         ): B = trampoline { emptyOk(state.stateContext.context, state, Hints.empty()) }
     }
 
+
+inline fun <S : Stream<*, *>, Context, Error, Output> ref(
+    parserProperty: KProperty0<ParsekT<S, Context, Error, Output>>
+) : ParsekT<S, Context, Error, Output> {
+    return object : ParsekT<S, Context, Error, Output> {
+        override fun <B> invoke(
+            state: State<S, Context, Error>,
+            trampoline: (() -> B) -> B,
+            consumedOk: (Output, State<S, Context, Error>, Hints) -> B,
+            consumedError: (ParseError<Error>, State<S, Context, Error>) -> B,
+            emptyOk: (Output, State<S, Context, Error>, Hints) -> B,
+            emptyError: (ParseError<Error>, State<S, Context, Error>) -> B
+        ): B = parserProperty()(
+            state,
+            trampoline,
+            consumedOk,
+            consumedError,
+            emptyOk,
+            emptyError
+        )
+    }
+}
 
 inline fun <S : Stream<*, *>, Context, Error> updateContext(crossinline fn: (Context) -> Context): ParsekT<S, Context, Error, Unit> =
     object : ParsekT<S, Context, Error, Unit> {
@@ -807,27 +875,27 @@ inline fun <S : Stream<*, *>, Context, Error, Output1, Output2> ParsekT<S, Conte
     }
 }
 
-internal inline fun <S : Stream<*, *>, Output> zero(): Parser<S, Output> =
-    object : Parser<S, Output> {
+internal inline fun <S : Stream<*, *>, Context, Error, Output> zero(): ParsekT<S, Context, Error, Output> =
+    object : ParsekT<S, Context, Error, Output> {
         override fun <B> invoke(
-            state: State<S, Any, Nothing>,
+            state: State<S, Context, Error>,
             trampoline: (() -> B) -> B,
-            consumedOk: (Output, State<S, Any, Nothing>, Hints) -> B,
-            consumedError: (ParseError<Nothing>, State<S, Any, Nothing>) -> B,
-            emptyOk: (Output, State<S, Any, Nothing>, Hints) -> B,
-            emptyError: (ParseError<Nothing>, State<S, Any, Nothing>) -> B
+            consumedOk: (Output, State<S, Context, Error>, Hints) -> B,
+            consumedError: (ParseError<Error>, State<S, Context, Error>) -> B,
+            emptyOk: (Output, State<S, Context, Error>, Hints) -> B,
+            emptyError: (ParseError<Error>, State<S, Context, Error>) -> B
         ): B = emptyError(ParseError.TrivialError<Any>(state.stateOffset, null, emptySet()), state)
     }
 
 @JvmName("timesPair")
 inline operator fun <S : Stream<*, *>, Context, Error, A, B1> ParsekT<S, Context, Error, A>.times(
     b: ParsekT<S, Context, Error, B1>
-): ParsekT<S, Context, Error, Pair<A, B1>> = ap(fp = ap(fp = pure { a: A -> { b: B1 ->  Pair(a, b) } }, this), b)
+): ParsekT<S, Context, Error, Pair<A, B1>> = ap(fp = ap(fp = pure { a: A -> { b: B1 -> Pair(a, b) } }, this), b)
 
 @JvmName("timesUnitThis")
 inline operator fun <S : Stream<*, *>, Context, Error, B1> ParsekT<S, Context, Error, Unit>.times(
     b: ParsekT<S, Context, Error, B1>
-): ParsekT<S, Context, Error, B1> = ap(fp = ap(fp = pure { { b: B1 -> b } }, this), b)
+): ParsekT<S, Context, Error, B1> = ap(fp = ap(fp = pure { _ -> { b: B1 -> b } }, this), b)
 
 @JvmName("timesUnitOther")
 inline operator fun <S : Stream<*, *>, Context, Error, A> ParsekT<S, Context, Error, A>.times(
@@ -844,7 +912,7 @@ inline operator fun <S : Stream<*, *>, Context, Error, A, B1, C> ParsekT<S, Cont
 inline operator fun <S : Stream<*, *>, Context, Error, A, B1> ParsekT<S, Context, Error, Pair<A, B1>>.times(
     b: ParsekT<S, Context, Error, Unit>
 ): ParsekT<S, Context, Error, Pair<A, B1>> =
-    ap(fp = ap(fp = pure { a: Pair<A, B1> -> { a } }, this), b)
+    ap(fp = ap(fp = pure { a: Pair<A, B1> -> { _ -> a } }, this), b)
 
 @JvmName("timesTuple4")
 inline operator fun <S : Stream<*, *>, Context, Error, A, B1, C, D> ParsekT<S, Context, Error, Triple<A, B1, C>>.times(
@@ -856,7 +924,7 @@ inline operator fun <S : Stream<*, *>, Context, Error, A, B1, C, D> ParsekT<S, C
 inline operator fun <S : Stream<*, *>, Context, Error, A, B1, C> ParsekT<S, Context, Error, Triple<A, B1, C>>.times(
     b: ParsekT<S, Context, Error, Unit>
 ): ParsekT<S, Context, Error, Triple<A, B1, C>> =
-    ap(fp = ap(fp = pure { a: Triple<A, B1, C> -> { a } }, this), b)
+    ap(fp = ap(fp = pure { a: Triple<A, B1, C> -> { _ -> a } }, this), b)
 
 @JvmName("timesTuple5")
 inline operator fun <S : Stream<*, *>, Context, Error, A, B1, C, D, E> ParsekT<S, Context, Error, Tuple4<A, B1, C, D>>.times(
@@ -868,7 +936,7 @@ inline operator fun <S : Stream<*, *>, Context, Error, A, B1, C, D, E> ParsekT<S
 inline operator fun <S : Stream<*, *>, Context, Error, A, B1, C, D> ParsekT<S, Context, Error, Tuple4<A, B1, C, D>>.times(
     b: ParsekT<S, Context, Error, Unit>
 ): ParsekT<S, Context, Error, Tuple4<A, B1, C, D>> =
-    ap(fp = ap(fp = pure { a: Tuple4<A, B1, C, D> -> { a } }, this), b)
+    ap(fp = ap(fp = pure { a: Tuple4<A, B1, C, D> -> { _ -> a } }, this), b)
 
 
 inline operator fun <S : Stream<*, *>, Context, Error, A> ParsekT<S, Context, Error, A>.unaryMinus(
@@ -914,6 +982,36 @@ inline fun <S : Stream<*, *>, Context, Error, A, B1> ap(
         )
     }
 }
+
+fun <S : Stream<*, *>, Context, Error, A, Open, Close> ParsekT<S, Context, Error, A>.between(
+    open: ParsekT<S, Context, Error, Open>,
+    close: ParsekT<S, Context, Error, Close>
+): ParsekT<S, Context, Error, A> = -open * this@between * -close
+
+
+fun <S : Stream<*, *>, Context, Error, A> ParsekT<S, Context, Error, A>.skipMany(): ParsekT<S, Context, Error, Unit> =
+    -(this@skipMany.many())
+
+fun <S : Stream<*, *>, Context, Error, A> choice(
+    vararg cs: ParsekT<S, Context, Error, A>
+): ParsekT<S, Context, Error, A> =
+    cs.foldRight(zero()) { a, b -> a or b }
+
+
+fun <S : Stream<*, *>, Context, Error, A, B, C> liftA2(
+    f: (A, B) -> C,
+    a: ParsekT<S, Context, Error, A>,
+    b: ParsekT<S, Context, Error, B>
+): ParsekT<S, Context, Error, C> = (a * b) map { (a, b) -> f(a, b) }
+
+fun <S : Stream<*, *>, Context, Error, A, Sep> ParsekT<S, Context, Error, A>.sepBy(
+    sep: ParsekT<S, Context, Error, Sep>
+): ParsekT<S, Context, Error, List<A>> = this@sepBy.sepBy1(sep) or pure<S, Context, Error, List<A>>(emptyList()).label("empty")
+
+inline fun <S : Stream<*, *>, Context, Error, A, Sep> ParsekT<S, Context, Error, A>.sepBy1(
+    sep: ParsekT<S, Context, Error, Sep>
+): ParsekT<S, Context, Error, List<A>> =
+    (this@sepBy1 * (-sep * this@sepBy1).many()).map { (a, b) -> listOf(a) + b }
 
 
 typealias InitRec<Stream, Context, Error, Output> =
