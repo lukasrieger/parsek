@@ -1,7 +1,7 @@
 [versions]
 agp = "8.2.0"
 inikio-core = "0.1"
-kotlin = "1.9.24"
+kotlin = "2.0.0"
 nexus-publish = "2.0.0-rc-1"
 android-minSdk = "24"
 android-compileSdk = "33"
